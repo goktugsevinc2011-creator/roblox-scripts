@@ -1,47 +1,110 @@
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
-
--- ==================== GUI ====================
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-
--- ESP Toggle
-local ESPButton = Instance.new("TextButton")
-ESPButton.Size = UDim2.new(0,150,0,50)
-ESPButton.Position = UDim2.new(0,10,0,10)
-ESPButton.BackgroundColor3 = Color3.fromRGB(50,50,50)
-ESPButton.TextColor3 = Color3.fromRGB(255,255,255)
-ESPButton.Text = "ESP: Kapalı"
-ESPButton.Parent = ScreenGui
-
--- Hız Toggle
-local SpeedButton = Instance.new("TextButton")
-SpeedButton.Size = UDim2.new(0,150,0,50)
-SpeedButton.Position = UDim2.new(0,10,0,70)
-SpeedButton.BackgroundColor3 = Color3.fromRGB(50,50,50)
-SpeedButton.TextColor3 = Color3.fromRGB(255,255,255)
-SpeedButton.Text = "Hız: Kapalı"
-SpeedButton.Parent = ScreenGui
-
--- Fly Toggle
-local FlyButton = Instance.new("TextButton")
-FlyButton.Size = UDim2.new(0,150,0,50)
-FlyButton.Position = UDim2.new(0,10,0,130)
-FlyButton.BackgroundColor3 = Color3.fromRGB(50,50,50)
-FlyButton.TextColor3 = Color3.fromRGB(255,255,255)
-FlyButton.Text = "Fly: Kapalı"
-FlyButton.Parent = ScreenGui
+local UserInputService = game:GetService("UserInputService")
 
 -- ==================== Ayarlar ====================
 local espEnabled = false
 local speedEnabled = false
 local flyEnabled = false
 local speedFast = 100
-local flyHeight = 100
 local flySpeed = 50
+local flyConnection
 
--- ==================== HIZ ====================
+-- ==================== GUI ====================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 200, 0, 250)
+MainFrame.Position = UDim2.new(0, 20, 0, 20)
+MainFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+MainFrame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0,10)
+UICorner.Parent = MainFrame
+
+-- Başlık
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1,0,0,30)
+Title.BackgroundTransparency = 1
+Title.Text = "Script GUI"
+Title.TextColor3 = Color3.fromRGB(255,255,255)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextScaled = true
+Title.Parent = MainFrame
+
+-- Buton yaratma fonksiyonu
+local function createButton(name, y)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0,180,0,40)
+    btn.Position = UDim2.new(0,10,0,y)
+    btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Text = name
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextScaled = true
+    btn.Parent = MainFrame
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0,8)
+    corner.Parent = btn
+
+    return btn
+end
+
+-- Butonlar
+local ESPButton = createButton("ESP: Kapalı",50)
+local SpeedButton = createButton("Hız: Kapalı",100)
+local FlyButton = createButton("Fly: Kapalı",150)
+local MinimizeButton = createButton("_",200)
+local CloseButton = createButton("X",200)
+CloseButton.Position = UDim2.new(0,110,0,200)
+
+-- GUI minimize/restore
+local minimized = false
+MinimizeButton.MouseButton1Click:Connect(function()
+    minimized = true
+    MainFrame.Size = UDim2.new(0, 100, 0, 30)
+    for _, child in pairs(MainFrame:GetChildren()) do
+        if child:IsA("TextButton") and child ~= MinimizeButton and child ~= CloseButton then
+            child.Visible = false
+        end
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == Enum.KeyCode.LeftAlt and UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+        if minimized then
+            minimized = false
+            MainFrame.Size = UDim2.new(0,200,0,250)
+            for _, child in pairs(MainFrame:GetChildren()) do
+                if child:IsA("TextButton") then
+                    child.Visible = true
+                end
+            end
+        end
+    end
+end)
+
+-- Script tamamen kapatma
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+    if flyConnection then flyConnection:Disconnect() end
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character then
+            local highlight = player.Character:FindFirstChildOfClass("Highlight")
+            if highlight then highlight:Destroy() end
+            local billboard = player.Character:FindFirstChildOfClass("BillboardGui")
+            if billboard then billboard:Destroy() end
+        end
+    end
+end)
+
+-- ==================== Hız ====================
 local function updateSpeed()
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
         LocalPlayer.Character.Humanoid.WalkSpeed = speedEnabled and speedFast or 16
@@ -58,8 +121,6 @@ LocalPlayer.CharacterAdded:Connect(updateSpeed)
 updateSpeed()
 
 -- ==================== FLY ====================
-local flyConnection
-
 FlyButton.MouseButton1Click:Connect(function()
     flyEnabled = not flyEnabled
     FlyButton.Text = flyEnabled and "Fly: Açık" or "Fly: Kapalı"
@@ -68,33 +129,21 @@ FlyButton.MouseButton1Click:Connect(function()
     if not hrp then return end
 
     if flyEnabled then
-        hrp.CFrame = hrp.CFrame + Vector3.new(0, flyHeight, 0)
+        hrp.CFrame = hrp.CFrame + Vector3.new(0,100,0)
 
         flyConnection = RunService.RenderStepped:Connect(function(delta)
             local moveDir = Vector3.new()
-            local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
-            local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if humanoid and root then
-                local cam = workspace.CurrentCamera
-                local keys = {W = false, A = false, S = false, D = false}
-                -- Klavye inputlarını al
-                for _, key in pairs(keys) do
-                    key = false
-                end
-                -- Basit hareket
-                if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
-                if moveDir.Magnitude > 0 then
-                    root.CFrame = root.CFrame + moveDir.Unit * flySpeed * delta
-                end
+            local cam = workspace.CurrentCamera
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
+            if moveDir.Magnitude > 0 then
+                hrp.CFrame = hrp.CFrame + moveDir.Unit * flySpeed * delta
             end
         end)
     else
-        if flyConnection then
-            flyConnection:Disconnect()
-        end
+        if flyConnection then flyConnection:Disconnect() end
     end
 end)
 
@@ -105,7 +154,6 @@ local function createESP(player)
     if espObjects[player] then return end
     if not player.Character then return end
 
-    -- Highlight
     local highlight = Instance.new("Highlight")
     highlight.Adornee = player.Character
     highlight.FillColor = Color3.fromRGB(255,0,0)
@@ -115,7 +163,6 @@ local function createESP(player)
     highlight.Enabled = espEnabled
     highlight.Parent = player.Character
 
-    -- BillboardGui isim için
     local head = player.Character:WaitForChild("Head")
     local billboard = Instance.new("BillboardGui")
     billboard.Adornee = head
@@ -165,7 +212,6 @@ ESPButton.MouseButton1Click:Connect(function()
     updateESP()
 end)
 
--- Oyuncu eklendiğinde veya karakter oluştuğunda
 Players.PlayerAdded:Connect(function(player)
     player.CharacterAdded:Connect(function()
         if espEnabled then
