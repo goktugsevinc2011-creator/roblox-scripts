@@ -24,7 +24,7 @@ SpeedButton.TextColor3 = Color3.fromRGB(255,255,255)
 SpeedButton.Text = "Hız: Kapalı"
 SpeedButton.Parent = ScreenGui
 
--- Yukarı çıkma Toggle
+-- Fly Toggle
 local FlyButton = Instance.new("TextButton")
 FlyButton.Size = UDim2.new(0,150,0,50)
 FlyButton.Position = UDim2.new(0,10,0,130)
@@ -39,6 +39,7 @@ local speedEnabled = false
 local flyEnabled = false
 local speedFast = 100
 local flyHeight = 100
+local flySpeed = 50
 
 -- ==================== HIZ ====================
 local function updateSpeed()
@@ -57,20 +58,44 @@ LocalPlayer.CharacterAdded:Connect(updateSpeed)
 updateSpeed()
 
 -- ==================== FLY ====================
-local function toggleFly()
-    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = LocalPlayer.Character.HumanoidRootPart
-    if flyEnabled then
-        hrp.CFrame = hrp.CFrame + Vector3.new(0, flyHeight, 0)
-    else
-        hrp.CFrame = hrp.CFrame - Vector3.new(0, flyHeight, 0)
-    end
-end
+local flyConnection
 
 FlyButton.MouseButton1Click:Connect(function()
     flyEnabled = not flyEnabled
     FlyButton.Text = flyEnabled and "Fly: Açık" or "Fly: Kapalı"
-    toggleFly()
+
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    if flyEnabled then
+        hrp.CFrame = hrp.CFrame + Vector3.new(0, flyHeight, 0)
+
+        flyConnection = RunService.RenderStepped:Connect(function(delta)
+            local moveDir = Vector3.new()
+            local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+            local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if humanoid and root then
+                local cam = workspace.CurrentCamera
+                local keys = {W = false, A = false, S = false, D = false}
+                -- Klavye inputlarını al
+                for _, key in pairs(keys) do
+                    key = false
+                end
+                -- Basit hareket
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
+                if moveDir.Magnitude > 0 then
+                    root.CFrame = root.CFrame + moveDir.Unit * flySpeed * delta
+                end
+            end
+        end)
+    else
+        if flyConnection then
+            flyConnection:Disconnect()
+        end
+    end
 end)
 
 -- ==================== ESP ====================
@@ -80,6 +105,7 @@ local function createESP(player)
     if espObjects[player] then return end
     if not player.Character then return end
 
+    -- Highlight
     local highlight = Instance.new("Highlight")
     highlight.Adornee = player.Character
     highlight.FillColor = Color3.fromRGB(255,0,0)
@@ -89,10 +115,12 @@ local function createESP(player)
     highlight.Enabled = espEnabled
     highlight.Parent = player.Character
 
-    -- İsim labeli
+    -- BillboardGui isim için
+    local head = player.Character:WaitForChild("Head")
     local billboard = Instance.new("BillboardGui")
+    billboard.Adornee = head
     billboard.Size = UDim2.new(0,100,0,50)
-    billboard.Adornee = player.Character:FindFirstChild("Head")
+    billboard.StudsOffset = Vector3.new(0,2,0)
     billboard.AlwaysOnTop = true
     billboard.Enabled = espEnabled
     billboard.Parent = player.Character
