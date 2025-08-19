@@ -6,14 +6,10 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 -- Ayarlar
-local espEnabled = false
-local speedEnabled = false
-local flyEnabled = false
-local noclipEnabled = false
-local snakeEnabled = false
-local speedFast = 100
-local flySpeed = 50
-local segments = {}
+local espEnabled, speedEnabled, flyEnabled, noclipEnabled, snakeEnabled = false,false,false,false,false
+local speedFast, flySpeed = 100, 50
+local snakeSegments = {}
+local bodyVelocity
 
 -- GUI oluştur
 local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
@@ -94,7 +90,8 @@ CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
     flyEnabled=false
     snakeEnabled=false
-    for _,seg in pairs(segments) do if seg then seg:Destroy() end end
+    if bodyVelocity then bodyVelocity:Destroy() end
+    for _,seg in pairs(snakeSegments) do if seg then seg:Destroy() end end
 end)
 
 -- Hız
@@ -143,15 +140,15 @@ local function createESP(player)
     billboard.Parent=player.Character
 
     local textLabel=Instance.new("TextLabel")
-    textLabel.Size=UDim2.new(1,0,1,0)
-    textLabel.BackgroundTransparency=1
-    textLabel.TextColor3=Color3.fromRGB(255,255,255)
-    textLabel.TextStrokeColor3=Color3.fromRGB(0,0,0)
-    textLabel.TextStrokeTransparency=0
-    textLabel.TextScaled=false
-    textLabel.Font=Enum.Font.SourceSansBold
-    textLabel.Text=player.Name
-    textLabel.Parent=billboard
+    textLabel.Size = UDim2.new(1,0,1,0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    textLabel.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+    textLabel.TextStrokeTransparency = 0
+    textLabel.TextScaled = false
+    textLabel.Font = Enum.Font.SourceSansBold
+    textLabel.Text = player.Name
+    textLabel.Parent = billboard
 
     espObjects[player]={Highlight=highlight,Billboard=billboard,TextLabel=textLabel}
 end
@@ -193,11 +190,11 @@ Players.PlayerRemoving:Connect(removeESP)
 for _,player in pairs(Players:GetPlayers()) do if player.Character then createESP(player) end end
 spawn(function() while true do wait(5) updateESP() end end)
 
--- Yılan (karakter parçaları ve aksesuarlar)
+-- Snake (karakter parçaları ve aksesuarlar)
 local function createSnake()
-    local char=LocalPlayer.Character
+    local char = LocalPlayer.Character
     if not char then return end
-    segments={}
+    snakeSegments = {}
 
     -- Karakteri görünmez yap
     for _,part in pairs(char:GetChildren()) do
@@ -208,14 +205,14 @@ local function createSnake()
         end
     end
 
-    -- Yılan segmentleri
+    -- Kendi parçalarını clone yap
     for _,part in pairs(char:GetChildren()) do
         if part:IsA("BasePart") then
             local clone=part:Clone()
             clone.Anchored=true
             clone.CanCollide=false
             clone.Parent=Workspace
-            table.insert(segments,clone)
+            table.insert(snakeSegments,clone)
         elseif part:IsA("Accessory") then
             local handle=part:FindFirstChild("Handle")
             if handle then
@@ -223,16 +220,15 @@ local function createSnake()
                 clone.Anchored=true
                 clone.CanCollide=false
                 clone.Parent=Workspace
-                table.insert(segments,clone)
+                table.insert(snakeSegments,clone)
             end
         end
     end
 end
 
 local function removeSnake()
-    for _,seg in pairs(segments) do if seg then seg:Destroy() end end
-    segments={}
-    -- Karakter görünür olsun
+    for _,seg in pairs(snakeSegments) do if seg then seg:Destroy() end end
+    snakeSegments={}
     local char=LocalPlayer.Character
     if char then
         for _,part in pairs(char:GetChildren()) do
@@ -246,32 +242,37 @@ local function removeSnake()
 end
 
 SnakeButton.MouseButton1Click:Connect(function()
-    snakeEnabled=not snakeEnabled
-    SnakeButton.Text=snakeEnabled and "Yılan: Açık" or "Yılan: Kapalı"
+    snakeEnabled = not snakeEnabled
+    SnakeButton.Text = snakeEnabled and "Yılan: Açık" or "Yılan: Kapalı"
     if snakeEnabled then createSnake() else removeSnake() end
 end)
 
 -- RunService
 RunService.RenderStepped:Connect(function(delta)
-    local char=LocalPlayer.Character
+    local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local hrp=char.HumanoidRootPart
+    local hrp = char.HumanoidRootPart
 
     -- Fly
     if flyEnabled then
-        local cam=workspace.CurrentCamera
-        local moveDir=Vector3.new()
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir=moveDir+cam.CFrame.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir=moveDir-cam.CFrame.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir=moveDir-cam.CFrame.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir=moveDir+cam.CFrame.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir=moveDir+Vector3.new(0,1,0) end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir=moveDir-Vector3.new(0,1,0) end
+        if not bodyVelocity then
+            bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.MaxForce = Vector3.new(1e5,1e5,1e5)
+            bodyVelocity.Velocity = Vector3.new()
+            bodyVelocity.Parent = hrp
+        end
+        local cam = workspace.CurrentCamera
+        local moveDir = Vector3.new()
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0,1,0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0,1,0) end
 
-        hrp.Anchored=true
-        hrp.CFrame=hrp.CFrame+moveDir.Unit*flySpeed*delta
+        bodyVelocity.Velocity = moveDir.Unit * flySpeed
     else
-        if hrp.Anchored then hrp.Anchored=false end
+        if bodyVelocity then bodyVelocity:Destroy() bodyVelocity=nil end
     end
 
     -- Noclip
@@ -283,8 +284,10 @@ RunService.RenderStepped:Connect(function(delta)
 
     -- Yılan segmentlerini taşı
     if snakeEnabled then
-        for _,seg in pairs(segments) do
-            seg.CFrame=hrp.CFrame
+        for _,seg in pairs(snakeSegments) do
+            if seg and hrp then
+                seg.CFrame = hrp.CFrame
+            end
         end
     end
 end)
