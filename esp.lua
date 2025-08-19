@@ -1,3 +1,4 @@
+-- Temel servisler
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
@@ -7,20 +8,19 @@ local Workspace = game:GetService("Workspace")
 
 -- Ayarlar
 local espEnabled, speedEnabled, flyEnabled, noclipEnabled, snakeEnabled = false,false,false,false,false
-local speedFast, flySpeed = 100, 50
+local speedFast, flySpeed = 100,50
 local snakeSegments = {}
+local bodyPosition, bodyGyro
 
 -- GUI
 local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
 ScreenGui.ResetOnSpawn = false
-
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0,220,0,260)
 MainFrame.Position = UDim2.new(0,20,0,20)
 MainFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
 MainFrame.Parent = ScreenGui
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0,10)
-
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1,0,0,30)
 Title.BackgroundTransparency = 1
@@ -67,7 +67,7 @@ local FlyButton = createButton("Fly: Kapalı",130)
 local NoclipButton = createButton("Noclip: Kapalı",170)
 local SnakeButton = createButton("Yılan: Kapalı",210)
 
--- Küçültme/Restore
+-- Küçültme / Restore
 local minimized=false
 local normalSize = MainFrame.Size
 MinimizeButton.MouseButton1Click:Connect(function()
@@ -89,6 +89,8 @@ CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
     flyEnabled=false
     snakeEnabled=false
+    if bodyPosition then bodyPosition:Destroy() end
+    if bodyGyro then bodyGyro:Destroy() end
     for _,seg in pairs(snakeSegments) do if seg then seg:Destroy() end end
 end)
 
@@ -204,7 +206,7 @@ local function createSnake()
     end
 
     local hrp = char:FindFirstChild("HumanoidRootPart")
-    local yOffset = hrp.Size.Y/2
+    local offsetY = hrp.Size.Y/2
 
     -- Segmentler
     for _,part in pairs(char:GetChildren()) do
@@ -212,7 +214,7 @@ local function createSnake()
             local clone = part:Clone()
             clone.Anchored = true
             clone.CanCollide = false
-            clone.CFrame = part.CFrame - Vector3.new(0, yOffset, 0)
+            clone.CFrame = part.CFrame - Vector3.new(0,offsetY,0)
             clone.Parent = Workspace
             table.insert(snakeSegments, clone)
         elseif part:IsA("Accessory") then
@@ -221,7 +223,7 @@ local function createSnake()
                 local clone = handle:Clone()
                 clone.Anchored = true
                 clone.CanCollide = false
-                clone.CFrame = handle.CFrame - Vector3.new(0, yOffset, 0)
+                clone.CFrame = handle.CFrame - Vector3.new(0,offsetY,0)
                 clone.Parent = Workspace
                 table.insert(snakeSegments, clone)
             end
@@ -257,8 +259,20 @@ RunService.RenderStepped:Connect(function(delta)
     local humanoid = char.Humanoid
     local hrp = char.HumanoidRootPart
 
-    -- Fly
+    -- Fly (BodyPosition + BodyGyro)
     if flyEnabled then
+        if not bodyPosition then
+            bodyPosition = Instance.new("BodyPosition", hrp)
+            bodyPosition.MaxForce = Vector3.new(1e5,1e5,1e5)
+            bodyPosition.D = 10
+            bodyPosition.P = 1e4
+        end
+        if not bodyGyro then
+            bodyGyro = Instance.new("BodyGyro", hrp)
+            bodyGyro.MaxTorque = Vector3.new(1e5,1e5,1e5)
+            bodyGyro.D = 10
+        end
+
         local cam = workspace.CurrentCamera
         local moveDir = Vector3.new()
         if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
@@ -268,8 +282,15 @@ RunService.RenderStepped:Connect(function(delta)
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0,1,0) end
         if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0,1,0) end
 
-        humanoid:ChangeState(Enum.HumanoidStateType.Physics)
-        hrp.Velocity = moveDir.Unit * flySpeed
+        if moveDir.Magnitude>0 then
+            bodyPosition.Position = hrp.Position + moveDir.Unit * flySpeed * delta
+        else
+            bodyPosition.Position = hrp.Position
+        end
+        bodyGyro.CFrame = CFrame.new(hrp.Position, hrp.Position + cam.CFrame.LookVector)
+    else
+        if bodyPosition then bodyPosition:Destroy() bodyPosition=nil end
+        if bodyGyro then bodyGyro:Destroy() bodyGyro=nil end
     end
 
     -- Noclip
