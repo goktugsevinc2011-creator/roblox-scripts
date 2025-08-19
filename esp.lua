@@ -11,6 +11,7 @@ local flyEnabled = false
 local speedFast = 100
 local flySpeed = 50
 local flyConnection
+local flyVelocity
 
 -- GUI Oluştur
 local ScreenGui = Instance.new("ScreenGui")
@@ -18,7 +19,7 @@ ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0,200,0,250)
+MainFrame.Size = UDim2.new(0,200,0,200)
 MainFrame.Position = UDim2.new(0,20,0,20)
 MainFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
 MainFrame.Parent = ScreenGui
@@ -36,11 +37,33 @@ Title.Font = Enum.Font.SourceSansBold
 Title.TextScaled = true
 Title.Parent = MainFrame
 
+-- Küçük yuvarlak butonlar sağ üst
+local function createCircleButton(name, posX, posY)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0,25,0,25)
+    btn.Position = UDim2.new(0,posX,0,posY)
+    btn.BackgroundColor3 = Color3.fromRGB(200,50,50)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Text = name
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextScaled = true
+    btn.Parent = MainFrame
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0,12)
+    corner.Parent = btn
+
+    return btn
+end
+
+local CloseButton = createCircleButton("X",170,5)
+local MinimizeButton = createCircleButton("_",140,5)
+
 -- Buton oluşturma fonksiyonu
 local function createButton(name, y)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0,90,0,30)
-    btn.Position = UDim2.new(0,10,0,y)
+    btn.Size = UDim2.new(0,160,0,30)
+    btn.Position = UDim2.new(0,20,0,y)
     btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
     btn.TextColor3 = Color3.fromRGB(255,255,255)
     btn.Text = name
@@ -57,9 +80,6 @@ end
 local ESPButton = createButton("ESP: Kapalı",50)
 local SpeedButton = createButton("Hız: Kapalı",90)
 local FlyButton = createButton("Fly: Kapalı",130)
-local MinimizeButton = createButton("_",170)
-local CloseButton = createButton("X",170)
-CloseButton.Position = UDim2.new(0,100,0,170)
 
 -- Küçültme / restore
 local minimized = false
@@ -73,7 +93,7 @@ end
 MinimizeButton.MouseButton1Click:Connect(function()
     if not minimized then
         minimized = true
-        tweenFrameSize(UDim2.new(0,100,0,30))
+        tweenFrameSize(UDim2.new(0,200,0,35))
         for _, child in pairs(MainFrame:GetChildren()) do
             if child:IsA("TextButton") and child ~= MinimizeButton and child ~= CloseButton then
                 child.Visible = false
@@ -133,6 +153,7 @@ end)
 CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
     if flyConnection then flyConnection:Disconnect() end
+    if flyVelocity then flyVelocity:Destroy() end
     for _, player in pairs(Players:GetPlayers()) do
         if player.Character then
             local highlight = player.Character:FindFirstChildOfClass("Highlight")
@@ -171,21 +192,30 @@ FlyButton.MouseButton1Click:Connect(function()
     if not hrp or not humanoid then return end
 
     if flyEnabled then
-        hrp.CFrame = hrp.CFrame + Vector3.new(0,100,0)
         humanoid.PlatformStand = true
+        hrp.CFrame = hrp.CFrame + Vector3.new(0,50,0)
 
-        flyConnection = RunService.RenderStepped:Connect(function(delta)
+        -- BodyVelocity ile yerçekimini iptal et
+        flyVelocity = Instance.new("BodyVelocity")
+        flyVelocity.MaxForce = Vector3.new(1e5,1e5,1e5)
+        flyVelocity.Velocity = Vector3.new(0,0,0)
+        flyVelocity.Parent = hrp
+
+        flyConnection = RunService.RenderStepped:Connect(function()
             local moveDir = Vector3.new()
             local cam = workspace.CurrentCamera
             if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
             if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
             if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
             if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0,1,0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0,1,0) end
 
-            hrp.Velocity = moveDir.Magnitude > 0 and moveDir.Unit * flySpeed or Vector3.new(0,0,0)
+            flyVelocity.Velocity = moveDir.Magnitude > 0 and moveDir.Unit * flySpeed or Vector3.new(0,0,0)
         end)
     else
         if flyConnection then flyConnection:Disconnect() end
+        if flyVelocity then flyVelocity:Destroy() end
         humanoid.PlatformStand = false
     end
 end)
