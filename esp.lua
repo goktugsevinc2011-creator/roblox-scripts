@@ -4,7 +4,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 
--- ==================== Ayarlar ====================
+-- Ayarlar
 local espEnabled = false
 local speedEnabled = false
 local flyEnabled = false
@@ -12,14 +12,14 @@ local speedFast = 100
 local flySpeed = 50
 local flyConnection
 
--- ==================== GUI ====================
+-- GUI Oluştur
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 200, 0, 250)
-MainFrame.Position = UDim2.new(0, 20, 0, 20)
+MainFrame.Size = UDim2.new(0,200,0,250)
+MainFrame.Position = UDim2.new(0,20,0,20)
 MainFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
 MainFrame.Parent = ScreenGui
 
@@ -36,7 +36,7 @@ Title.Font = Enum.Font.SourceSansBold
 Title.TextScaled = true
 Title.Parent = MainFrame
 
--- ==================== Buton oluşturma ====================
+-- Buton oluşturma fonksiyonu
 local function createButton(name, y)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0,90,0,30)
@@ -51,7 +51,6 @@ local function createButton(name, y)
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0,8)
     corner.Parent = btn
-
     return btn
 end
 
@@ -62,7 +61,7 @@ local MinimizeButton = createButton("_",170)
 local CloseButton = createButton("X",170)
 CloseButton.Position = UDim2.new(0,100,0,170)
 
--- ==================== Küçültme / Restore ====================
+-- Küçültme / restore
 local minimized = false
 local normalSize = MainFrame.Size
 
@@ -98,7 +97,7 @@ UserInputService.InputBegan:Connect(function(input, processed)
     end
 end)
 
--- ==================== GUI Drag ====================
+-- GUI Drag
 local dragging = false
 local dragInput
 local dragStart
@@ -130,7 +129,7 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- ==================== Script Kapat ====================
+-- Script Kapat
 CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
     if flyConnection then flyConnection:Disconnect() end
@@ -144,7 +143,7 @@ CloseButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- ==================== Hız ====================
+-- Hız
 local function updateSpeed()
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
         LocalPlayer.Character.Humanoid.WalkSpeed = speedEnabled and speedFast or 16
@@ -160,18 +159,20 @@ end)
 LocalPlayer.CharacterAdded:Connect(updateSpeed)
 updateSpeed()
 
--- ==================== FLY ====================
+-- Fly
 FlyButton.MouseButton1Click:Connect(function()
     flyEnabled = not flyEnabled
     FlyButton.Text = flyEnabled and "Fly: Açık" or "Fly: Kapalı"
 
-    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local humanoid = char:FindFirstChild("Humanoid")
     if not hrp or not humanoid then return end
 
     if flyEnabled then
         hrp.CFrame = hrp.CFrame + Vector3.new(0,100,0)
-        humanoid.PlatformStand = true -- havada durma
+        humanoid.PlatformStand = true
 
         flyConnection = RunService.RenderStepped:Connect(function(delta)
             local moveDir = Vector3.new()
@@ -180,11 +181,8 @@ FlyButton.MouseButton1Click:Connect(function()
             if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
             if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
             if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
-            if moveDir.Magnitude > 0 then
-                hrp.Velocity = moveDir.Unit * flySpeed
-            else
-                hrp.Velocity = Vector3.new(0,0,0)
-            end
+
+            hrp.Velocity = moveDir.Magnitude > 0 and moveDir.Unit * flySpeed or Vector3.new(0,0,0)
         end)
     else
         if flyConnection then flyConnection:Disconnect() end
@@ -192,7 +190,7 @@ FlyButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- ==================== ESP ====================
+-- ESP
 local espObjects = {}
 
 local function createESP(player)
@@ -248,7 +246,6 @@ local function updateESP()
                 espObjects[player].Highlight.Enabled = espEnabled
                 espObjects[player].Billboard.Enabled = espEnabled
 
-                -- Mesafeyi hesapla ve Text güncelle
                 local dist = (LocalPlayer.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
                 espObjects[player].TextLabel.Text = player.Name.." | "..math.floor(dist).." studs"
             end
@@ -277,5 +274,4 @@ for _, player in pairs(Players:GetPlayers()) do
     end
 end
 
--- ESP güncelleme
 RunService.RenderStepped:Connect(updateESP)
