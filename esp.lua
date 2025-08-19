@@ -27,7 +27,6 @@ local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0,10)
 UICorner.Parent = MainFrame
 
--- Başlık
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1,0,0,30)
 Title.BackgroundTransparency = 1
@@ -37,10 +36,10 @@ Title.Font = Enum.Font.SourceSansBold
 Title.TextScaled = true
 Title.Parent = MainFrame
 
--- ==================== Buton yaratma fonksiyonu ====================
+-- ==================== Buton oluşturma ====================
 local function createButton(name, y)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0,180,0,40)
+    btn.Size = UDim2.new(0,90,0,30)
     btn.Position = UDim2.new(0,10,0,y)
     btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
     btn.TextColor3 = Color3.fromRGB(255,255,255)
@@ -56,15 +55,14 @@ local function createButton(name, y)
     return btn
 end
 
--- Butonlar
 local ESPButton = createButton("ESP: Kapalı",50)
-local SpeedButton = createButton("Hız: Kapalı",100)
-local FlyButton = createButton("Fly: Kapalı",150)
-local MinimizeButton = createButton("_",200)
-local CloseButton = createButton("X",200)
-CloseButton.Position = UDim2.new(0,110,0,200)
+local SpeedButton = createButton("Hız: Kapalı",90)
+local FlyButton = createButton("Fly: Kapalı",130)
+local MinimizeButton = createButton("_",170)
+local CloseButton = createButton("X",170)
+CloseButton.Position = UDim2.new(0,100,0,170)
 
--- ==================== GUI Küçültme / Restore ====================
+-- ==================== Küçültme / Restore ====================
 local minimized = false
 local normalSize = MainFrame.Size
 
@@ -168,10 +166,12 @@ FlyButton.MouseButton1Click:Connect(function()
     FlyButton.Text = flyEnabled and "Fly: Açık" or "Fly: Kapalı"
 
     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
+    local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+    if not hrp or not humanoid then return end
 
     if flyEnabled then
         hrp.CFrame = hrp.CFrame + Vector3.new(0,100,0)
+        humanoid.PlatformStand = true -- havada durma
 
         flyConnection = RunService.RenderStepped:Connect(function(delta)
             local moveDir = Vector3.new()
@@ -181,11 +181,14 @@ FlyButton.MouseButton1Click:Connect(function()
             if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
             if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
             if moveDir.Magnitude > 0 then
-                hrp.CFrame = hrp.CFrame + moveDir.Unit * flySpeed * delta
+                hrp.Velocity = moveDir.Unit * flySpeed
+            else
+                hrp.Velocity = Vector3.new(0,0,0)
             end
         end)
     else
         if flyConnection then flyConnection:Disconnect() end
+        humanoid.PlatformStand = false
     end
 end)
 
@@ -208,7 +211,7 @@ local function createESP(player)
     local head = player.Character:WaitForChild("Head")
     local billboard = Instance.new("BillboardGui")
     billboard.Adornee = head
-    billboard.Size = UDim2.new(0,100,0,50)
+    billboard.Size = UDim2.new(0,100,0,30)
     billboard.StudsOffset = Vector3.new(0,2,0)
     billboard.AlwaysOnTop = true
     billboard.Enabled = espEnabled
@@ -220,11 +223,12 @@ local function createESP(player)
     textLabel.TextColor3 = Color3.fromRGB(255,255,255)
     textLabel.TextStrokeColor3 = Color3.fromRGB(0,0,0)
     textLabel.TextStrokeTransparency = 0
-    textLabel.TextScaled = true
+    textLabel.TextScaled = false
+    textLabel.Font = Enum.Font.SourceSansBold
     textLabel.Text = player.Name
     textLabel.Parent = billboard
 
-    espObjects[player] = {Highlight = highlight, Billboard = billboard}
+    espObjects[player] = {Highlight = highlight, Billboard = billboard, TextLabel = textLabel}
 end
 
 local function removeESP(player)
@@ -237,12 +241,16 @@ end
 
 local function updateESP()
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             if not espObjects[player] then
                 createESP(player)
             else
                 espObjects[player].Highlight.Enabled = espEnabled
                 espObjects[player].Billboard.Enabled = espEnabled
+
+                -- Mesafeyi hesapla ve Text güncelle
+                local dist = (LocalPlayer.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
+                espObjects[player].TextLabel.Text = player.Name.." | "..math.floor(dist).." studs"
             end
         end
     end
@@ -268,3 +276,6 @@ for _, player in pairs(Players:GetPlayers()) do
         createESP(player)
     end
 end
+
+-- ESP güncelleme
+RunService.RenderStepped:Connect(updateESP)
