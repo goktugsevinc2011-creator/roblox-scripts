@@ -1,4 +1,4 @@
--- Temel servisler
+--// Servisler
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
@@ -6,13 +6,13 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
--- Ayarlar
+--// Ayarlar
 local espEnabled, speedEnabled, flyEnabled, noclipEnabled, snakeEnabled = false,false,false,false,false
 local speedFast, flySpeed = 100,50
 local snakeSegments = {}
 local bodyPosition, bodyGyro
 
--- GUI
+--// GUI
 local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
 ScreenGui.ResetOnSpawn = false
 local MainFrame = Instance.new("Frame")
@@ -120,7 +120,6 @@ local espObjects={}
 local function createESP(player)
     if espObjects[player] then return end
     if not player.Character then return end
-
     local highlight=Instance.new("Highlight")
     highlight.Adornee=player.Character
     highlight.FillColor=Color3.fromRGB(255,0,0)
@@ -195,26 +194,26 @@ local function createSnake()
     local char = LocalPlayer.Character
     if not char then return end
     snakeSegments = {}
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    local offsetY = hrp.Size.Y/2
 
     -- Karakteri görünmez yap
     for _,part in pairs(char:GetChildren()) do
-        if part:IsA("BasePart") then part.Transparency=1 end
-        if part:IsA("Accessory") then
-            local handle=part:FindFirstChild("Handle")
-            if handle then handle.Transparency=1 end
+        if part:IsA("BasePart") then part.Transparency = 1
+        elseif part:IsA("Accessory") then
+            local handle = part:FindFirstChild("Handle")
+            if handle then handle.Transparency = 1 end
         end
     end
 
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local offsetY = hrp.Size.Y/2
-
-    -- Segmentler
+    -- Segmentler: BasePart'lar ve aksesuarlar
     for _,part in pairs(char:GetChildren()) do
         if part:IsA("BasePart") then
             local clone = part:Clone()
             clone.Anchored = true
             clone.CanCollide = false
-            clone.CFrame = part.CFrame - Vector3.new(0,offsetY,0)
+            clone.CFrame = part.CFrame - Vector3.new(0, offsetY, 0)
             clone.Parent = Workspace
             table.insert(snakeSegments, clone)
         elseif part:IsA("Accessory") then
@@ -223,7 +222,7 @@ local function createSnake()
                 local clone = handle:Clone()
                 clone.Anchored = true
                 clone.CanCollide = false
-                clone.CFrame = handle.CFrame - Vector3.new(0,offsetY,0)
+                clone.CFrame = handle.CFrame - Vector3.new(0, offsetY, 0)
                 clone.Parent = Workspace
                 table.insert(snakeSegments, clone)
             end
@@ -232,15 +231,17 @@ local function createSnake()
 end
 
 local function removeSnake()
-    for _,seg in pairs(snakeSegments) do if seg then seg:Destroy() end end
-    snakeSegments={}
-    local char=LocalPlayer.Character
+    for _,seg in pairs(snakeSegments) do
+        if seg then seg:Destroy() end
+    end
+    snakeSegments = {}
+    local char = LocalPlayer.Character
     if char then
         for _,part in pairs(char:GetChildren()) do
-            if part:IsA("BasePart") then part.Transparency=0 end
+            if part:IsA("BasePart") then part.Transparency = 0 end
             if part:IsA("Accessory") then
-                local handle=part:FindFirstChild("Handle")
-                if handle then handle.Transparency=0 end
+                local handle = part:FindFirstChild("Handle")
+                if handle then handle.Transparency = 0 end
             end
         end
     end
@@ -304,7 +305,7 @@ RunService.RenderStepped:Connect(function(delta)
     if snakeEnabled then
         for _,seg in pairs(snakeSegments) do
             if seg then
-                seg.CFrame = hrp.CFrame - Vector3.new(0, hrp.Size.Y/2,0)
+                seg.CFrame = hrp.CFrame - Vector3.new(0, hrp.Size.Y/2, 0)
             end
         end
     end
