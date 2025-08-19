@@ -3,6 +3,7 @@ local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
 
 -- Ayarlar
 local espEnabled = false
@@ -11,7 +12,6 @@ local flyEnabled = false
 local noclipEnabled = false
 local speedFast = 100
 local flySpeed = 50
-local flyPlatform
 
 -- GUI Oluştur
 local ScreenGui = Instance.new("ScreenGui")
@@ -108,7 +108,7 @@ end)
 -- Script Kapat
 CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
-    if flyPlatform then flyPlatform:Destroy() end
+    if flyEnabled then flyEnabled = false end
     for _, player in pairs(Players:GetPlayers()) do
         if player.Character then
             local highlight = player.Character:FindFirstChildOfClass("Highlight")
@@ -135,77 +135,49 @@ end)
 LocalPlayer.CharacterAdded:Connect(updateSpeed)
 updateSpeed()
 
--- Fly + platform
+-- Fly
+local FlyDirection = Vector3.new()
 FlyButton.MouseButton1Click:Connect(function()
     flyEnabled = not flyEnabled
     FlyButton.Text = flyEnabled and "Fly: Açık" or "Fly: Kapalı"
+end)
 
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
+RunService.RenderStepped:Connect(function(delta)
+    if flyEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = LocalPlayer.Character.HumanoidRootPart
+        local cam = workspace.CurrentCamera
+        local moveDir = Vector3.new()
 
-    if flyEnabled then
-        -- Görünmez platform
-        flyPlatform = Instance.new("Part")
-        flyPlatform.Size = Vector3.new(6,1,6)
-        flyPlatform.Transparency = 1
-        flyPlatform.Anchored = true
-        flyPlatform.CanCollide = true
-        flyPlatform.Position = hrp.Position - Vector3.new(0,3,0)
-        flyPlatform.Parent = workspace
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0,1,0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0,1,0) end
 
-        local platformUpdate
-        platformUpdate = RunService.RenderStepped:Connect(function()
-            if not flyEnabled then
-                platformUpdate:Disconnect()
-                flyPlatform:Destroy()
-                return
+        if moveDir.Magnitude > 0 then
+            hrp.CFrame = hrp.CFrame + moveDir.Unit * flySpeed * delta
+        end
+    end
+
+    -- Noclip
+    if noclipEnabled and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
             end
-
-            local moveDir = Vector3.new()
-            local cam = workspace.CurrentCamera
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
-
-            flyPlatform.Position = flyPlatform.Position + (moveDir.Unit * flySpeed * RunService.RenderStepped:Wait())
-            hrp.CFrame = CFrame.new(flyPlatform.Position + Vector3.new(0,3,0))
-        end)
-    else
-        if flyPlatform then
-            flyPlatform:Destroy()
         end
     end
 end)
 
 -- Noclip
-local function setNoclip(state)
-    noclipEnabled = state
-    for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = not noclipEnabled
-        end
-    end
-end
-
 NoclipButton.MouseButton1Click:Connect(function()
     noclipEnabled = not noclipEnabled
     NoclipButton.Text = noclipEnabled and "Noclip: Açık" or "Noclip: Kapalı"
-    setNoclip(noclipEnabled)
-end)
-
-LocalPlayer.CharacterAdded:Connect(function(char)
-    if noclipEnabled then
-        char:WaitForChild("HumanoidRootPart")
-        setNoclip(true)
-    end
 end)
 
 -- ESP
 local espObjects = {}
-
 local function createESP(player)
     if espObjects[player] then return end
     if not player.Character then return end
@@ -281,10 +253,16 @@ Players.PlayerAdded:Connect(function(player)
 end)
 
 Players.PlayerRemoving:Connect(removeESP)
+
+-- Başlangıç ESP
 for _, player in pairs(Players:GetPlayers()) do
     if player.Character then
         createESP(player)
     end
 end
 
-RunService.RenderStepped:Connect(updateESP)
+-- Her 5 saniyede güncelle
+while true do
+    wait(5)
+    updateESP()
+end
