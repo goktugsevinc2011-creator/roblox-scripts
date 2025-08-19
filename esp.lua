@@ -10,6 +10,7 @@ local espEnabled = false
 local speedEnabled = false
 local flyEnabled = false
 local noclipEnabled = false
+local snakeEnabled = false
 local speedFast = 100
 local flySpeed = 50
 
@@ -25,7 +26,7 @@ ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0,220,0,220)
+MainFrame.Size = UDim2.new(0,220,0,260)
 MainFrame.Position = UDim2.new(0,20,0,20)
 MainFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
 MainFrame.Parent = ScreenGui
@@ -43,7 +44,6 @@ Title.Font = Enum.Font.SourceSansBold
 Title.TextScaled = true
 Title.Parent = MainFrame
 
--- Küçük yuvarlak butonlar sağ üst
 local function createCircleButton(name, posX, posY, color)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0,20,0,20)
@@ -58,14 +58,12 @@ local function createCircleButton(name, posX, posY, color)
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0,10)
     corner.Parent = btn
-
     return btn
 end
 
 local CloseButton = createCircleButton("X",200,5,Color3.fromRGB(200,50,50))
 local MinimizeButton = createCircleButton("_",175,5,Color3.fromRGB(50,200,50))
 
--- Buton oluşturma fonksiyonu
 local function createButton(name, y)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0,180,0,30)
@@ -87,11 +85,11 @@ local ESPButton = createButton("ESP: Kapalı",50)
 local SpeedButton = createButton("Hız: Kapalı",90)
 local FlyButton = createButton("Fly: Kapalı",130)
 local NoclipButton = createButton("Noclip: Kapalı",170)
+local SnakeButton = createButton("Yılan: Kapalı",210)
 
 -- Küçültme / restore
 local minimized = false
 local normalSize = MainFrame.Size
-
 MinimizeButton.MouseButton1Click:Connect(function()
     minimized = not minimized
     if minimized then
@@ -111,13 +109,11 @@ MinimizeButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Script Kapat
 CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
     flyEnabled = false
-    for _, seg in pairs(segments) do
-        if seg then seg:Destroy() end
-    end
+    snakeEnabled = false
+    for _, seg in pairs(segments) do if seg then seg:Destroy() end end
     for _, player in pairs(Players:GetPlayers()) do
         if player.Character then
             local highlight = player.Character:FindFirstChildOfClass("Highlight")
@@ -140,7 +136,6 @@ SpeedButton.MouseButton1Click:Connect(function()
     SpeedButton.Text = speedEnabled and "Hız: Açık" or "Hız: Kapalı"
     updateSpeed()
 end)
-
 LocalPlayer.CharacterAdded:Connect(updateSpeed)
 updateSpeed()
 
@@ -234,18 +229,30 @@ end)
 
 Players.PlayerRemoving:Connect(removeESP)
 
--- Başlangıç ESP
 for _, player in pairs(Players:GetPlayers()) do
     if player.Character then
         createESP(player)
     end
 end
 
--- Yılan
+spawn(function()
+    while true do
+        wait(5)
+        updateESP()
+    end
+end)
+
+-- Yılan aç/kapa
 local function createSnake()
     local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    if not char then return end
     segments = {}
+
+    -- Karakteryi görünmez yap
+    if char:FindFirstChild("Humanoid") then
+        char.Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+        char.HumanoidRootPart.Transparency = 1
+    end
 
     for i = 1, segmentCount do
         local seg = Instance.new("Part")
@@ -260,7 +267,26 @@ local function createSnake()
     end
 end
 
-createSnake()
+local function removeSnake()
+    for _, seg in pairs(segments) do
+        if seg then seg:Destroy() end
+    end
+    segments = {}
+    -- Karakter görünür olsun
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        LocalPlayer.Character.HumanoidRootPart.Transparency = 0
+    end
+end
+
+SnakeButton.MouseButton1Click:Connect(function()
+    snakeEnabled = not snakeEnabled
+    SnakeButton.Text = snakeEnabled and "Yılan: Açık" or "Yılan: Kapalı"
+    if snakeEnabled then
+        createSnake()
+    else
+        removeSnake()
+    end
+end)
 
 -- RunService loop
 RunService.RenderStepped:Connect(function(delta)
@@ -293,27 +319,10 @@ RunService.RenderStepped:Connect(function(delta)
         end
     end
 
-    -- Yılan hareket
-    for i, seg in ipairs(segments) do
-        if i == 1 then
-            local dir = (hrp.Position - seg.Position)
-            if dir.Magnitude > segmentSpacing then
-                seg.Position = seg.Position + dir.Unit * (dir.Magnitude - segmentSpacing)
-            end
-        else
-            local prevSeg = segments[i-1]
-            local dir = (prevSeg.Position - seg.Position)
-            if dir.Magnitude > segmentSpacing then
-                seg.Position = seg.Position + dir.Unit * (dir.Magnitude - segmentSpacing)
-            end
+    -- Yılan segmentlerini karakter yerine taşı
+    if snakeEnabled then
+        for i, seg in ipairs(segments) do
+            seg.CFrame = hrp.CFrame * CFrame.new(0, -i*segmentSpacing, 0)
         end
-    end
-end)
-
--- Her 5 saniyede ESP güncelle
-spawn(function()
-    while true do
-        wait(5)
-        updateESP()
     end
 end)
