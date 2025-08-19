@@ -13,6 +13,12 @@ local noclipEnabled = false
 local speedFast = 100
 local flySpeed = 50
 
+-- Yılan ayarları
+local segmentCount = 10
+local segmentSpacing = 2
+local segmentSize = Vector3.new(2,2,2)
+local segments = {}
+
 -- GUI Oluştur
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -108,7 +114,10 @@ end)
 -- Script Kapat
 CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
-    if flyEnabled then flyEnabled = false end
+    flyEnabled = false
+    for _, seg in pairs(segments) do
+        if seg then seg:Destroy() end
+    end
     for _, player in pairs(Players:GetPlayers()) do
         if player.Character then
             local highlight = player.Character:FindFirstChildOfClass("Highlight")
@@ -136,38 +145,9 @@ LocalPlayer.CharacterAdded:Connect(updateSpeed)
 updateSpeed()
 
 -- Fly
-local FlyDirection = Vector3.new()
 FlyButton.MouseButton1Click:Connect(function()
     flyEnabled = not flyEnabled
     FlyButton.Text = flyEnabled and "Fly: Açık" or "Fly: Kapalı"
-end)
-
-RunService.RenderStepped:Connect(function(delta)
-    if flyEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local hrp = LocalPlayer.Character.HumanoidRootPart
-        local cam = workspace.CurrentCamera
-        local moveDir = Vector3.new()
-
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0,1,0) end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0,1,0) end
-
-        if moveDir.Magnitude > 0 then
-            hrp.CFrame = hrp.CFrame + moveDir.Unit * flySpeed * delta
-        end
-    end
-
-    -- Noclip
-    if noclipEnabled and LocalPlayer.Character then
-        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
-    end
 end)
 
 -- Noclip
@@ -261,8 +241,79 @@ for _, player in pairs(Players:GetPlayers()) do
     end
 end
 
--- Her 5 saniyede güncelle
-while true do
-    wait(5)
-    updateESP()
+-- Yılan
+local function createSnake()
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    segments = {}
+
+    for i = 1, segmentCount do
+        local seg = Instance.new("Part")
+        seg.Size = segmentSize
+        seg.Anchored = true
+        seg.CanCollide = false
+        seg.BrickColor = BrickColor.random()
+        seg.Material = Enum.Material.SmoothPlastic
+        seg.Position = char.HumanoidRootPart.Position - Vector3.new(0, i*segmentSpacing, 0)
+        seg.Parent = Workspace
+        table.insert(segments, seg)
+    end
 end
+
+createSnake()
+
+-- RunService loop
+RunService.RenderStepped:Connect(function(delta)
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
+
+    -- Fly
+    if flyEnabled then
+        local cam = workspace.CurrentCamera
+        local moveDir = Vector3.new()
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0,1,0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0,1,0) end
+
+        if moveDir.Magnitude > 0 then
+            hrp.CFrame = hrp.CFrame + moveDir.Unit * flySpeed * delta
+        end
+    end
+
+    -- Noclip
+    if noclipEnabled then
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+
+    -- Yılan hareket
+    for i, seg in ipairs(segments) do
+        if i == 1 then
+            local dir = (hrp.Position - seg.Position)
+            if dir.Magnitude > segmentSpacing then
+                seg.Position = seg.Position + dir.Unit * (dir.Magnitude - segmentSpacing)
+            end
+        else
+            local prevSeg = segments[i-1]
+            local dir = (prevSeg.Position - seg.Position)
+            if dir.Magnitude > segmentSpacing then
+                seg.Position = seg.Position + dir.Unit * (dir.Magnitude - segmentSpacing)
+            end
+        end
+    end
+end)
+
+-- Her 5 saniyede ESP güncelle
+spawn(function()
+    while true do
+        wait(5)
+        updateESP()
+    end
+end)
