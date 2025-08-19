@@ -9,9 +9,8 @@ local Workspace = game:GetService("Workspace")
 local espEnabled, speedEnabled, flyEnabled, noclipEnabled, snakeEnabled = false,false,false,false,false
 local speedFast, flySpeed = 100, 50
 local snakeSegments = {}
-local bodyVelocity
 
--- GUI oluştur
+-- GUI
 local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
 ScreenGui.ResetOnSpawn = false
 
@@ -90,7 +89,6 @@ CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
     flyEnabled=false
     snakeEnabled=false
-    if bodyVelocity then bodyVelocity:Destroy() end
     for _,seg in pairs(snakeSegments) do if seg then seg:Destroy() end end
 end)
 
@@ -190,7 +188,7 @@ Players.PlayerRemoving:Connect(removeESP)
 for _,player in pairs(Players:GetPlayers()) do if player.Character then createESP(player) end end
 spawn(function() while true do wait(5) updateESP() end end)
 
--- Snake (karakter parçaları ve aksesuarlar)
+-- Snake
 local function createSnake()
     local char = LocalPlayer.Character
     if not char then return end
@@ -205,22 +203,27 @@ local function createSnake()
         end
     end
 
-    -- Kendi parçalarını clone yap
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local yOffset = hrp.Size.Y/2
+
+    -- Segmentler
     for _,part in pairs(char:GetChildren()) do
         if part:IsA("BasePart") then
-            local clone=part:Clone()
-            clone.Anchored=true
-            clone.CanCollide=false
-            clone.Parent=Workspace
-            table.insert(snakeSegments,clone)
+            local clone = part:Clone()
+            clone.Anchored = true
+            clone.CanCollide = false
+            clone.CFrame = part.CFrame - Vector3.new(0, yOffset, 0)
+            clone.Parent = Workspace
+            table.insert(snakeSegments, clone)
         elseif part:IsA("Accessory") then
-            local handle=part:FindFirstChild("Handle")
+            local handle = part:FindFirstChild("Handle")
             if handle then
-                local clone=handle:Clone()
-                clone.Anchored=true
-                clone.CanCollide=false
-                clone.Parent=Workspace
-                table.insert(snakeSegments,clone)
+                local clone = handle:Clone()
+                clone.Anchored = true
+                clone.CanCollide = false
+                clone.CFrame = handle.CFrame - Vector3.new(0, yOffset, 0)
+                clone.Parent = Workspace
+                table.insert(snakeSegments, clone)
             end
         end
     end
@@ -250,17 +253,12 @@ end)
 -- RunService
 RunService.RenderStepped:Connect(function(delta)
     local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    if not char or not char:FindFirstChild("Humanoid") then return end
+    local humanoid = char.Humanoid
     local hrp = char.HumanoidRootPart
 
     -- Fly
     if flyEnabled then
-        if not bodyVelocity then
-            bodyVelocity = Instance.new("BodyVelocity")
-            bodyVelocity.MaxForce = Vector3.new(1e5,1e5,1e5)
-            bodyVelocity.Velocity = Vector3.new()
-            bodyVelocity.Parent = hrp
-        end
         local cam = workspace.CurrentCamera
         local moveDir = Vector3.new()
         if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
@@ -270,9 +268,8 @@ RunService.RenderStepped:Connect(function(delta)
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0,1,0) end
         if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0,1,0) end
 
-        bodyVelocity.Velocity = moveDir.Unit * flySpeed
-    else
-        if bodyVelocity then bodyVelocity:Destroy() bodyVelocity=nil end
+        humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+        hrp.Velocity = moveDir.Unit * flySpeed
     end
 
     -- Noclip
@@ -282,11 +279,11 @@ RunService.RenderStepped:Connect(function(delta)
         end
     end
 
-    -- Yılan segmentlerini taşı
+    -- Snake segmentleri
     if snakeEnabled then
         for _,seg in pairs(snakeSegments) do
-            if seg and hrp then
-                seg.CFrame = hrp.CFrame
+            if seg then
+                seg.CFrame = hrp.CFrame - Vector3.new(0, hrp.Size.Y/2,0)
             end
         end
     end
