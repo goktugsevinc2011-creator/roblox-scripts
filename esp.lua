@@ -11,6 +11,7 @@ local espEnabled, speedEnabled, flyEnabled, noclipEnabled, snakeEnabled = false,
 local speedFast, flySpeed = 100,50
 local snakeSegments = {}
 local bodyPosition, bodyGyro
+local segmentDistance = 2 -- snake segment arası boşluk
 
 --// GUI
 local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
@@ -91,7 +92,7 @@ CloseButton.MouseButton1Click:Connect(function()
     snakeEnabled=false
     if bodyPosition then bodyPosition:Destroy() end
     if bodyGyro then bodyGyro:Destroy() end
-    for _,seg in pairs(snakeSegments) do if seg then seg:Destroy() end end
+    for _,seg in pairs(snakeSegments) do if seg.Part then seg.Part:Destroy() end end
 end)
 
 -- Hız
@@ -189,14 +190,13 @@ Players.PlayerRemoving:Connect(removeESP)
 for _,player in pairs(Players:GetPlayers()) do if player.Character then createESP(player) end end
 spawn(function() while true do wait(5) updateESP() end end)
 
--- Snake
+-- Snake (arkadan uzayan)
 local function createSnake()
     local char = LocalPlayer.Character
     if not char then return end
     snakeSegments = {}
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
-    local offsetY = hrp.Size.Y/2
 
     -- Karakteri görünmez yap
     for _,part in pairs(char:GetChildren()) do
@@ -207,32 +207,22 @@ local function createSnake()
         end
     end
 
-    -- Segmentler: BasePart'lar ve aksesuarlar
+    local prevCFrame = hrp.CFrame
     for _,part in pairs(char:GetChildren()) do
-        if part:IsA("BasePart") then
-            local clone = part:Clone()
+        if part:IsA("BasePart") or (part:IsA("Accessory") and part:FindFirstChild("Handle")) then
+            local clone = (part:IsA("Accessory") and part.Handle or part):Clone()
             clone.Anchored = true
             clone.CanCollide = false
-            clone.CFrame = part.CFrame - Vector3.new(0, offsetY, 0)
+            clone.CFrame = prevCFrame - Vector3.new(0, hrp.Size.Y/2, 0)
             clone.Parent = Workspace
-            table.insert(snakeSegments, clone)
-        elseif part:IsA("Accessory") then
-            local handle = part:FindFirstChild("Handle")
-            if handle then
-                local clone = handle:Clone()
-                clone.Anchored = true
-                clone.CanCollide = false
-                clone.CFrame = handle.CFrame - Vector3.new(0, offsetY, 0)
-                clone.Parent = Workspace
-                table.insert(snakeSegments, clone)
-            end
+            table.insert(snakeSegments, {Part=clone})
         end
     end
 end
 
 local function removeSnake()
     for _,seg in pairs(snakeSegments) do
-        if seg then seg:Destroy() end
+        if seg.Part then seg.Part:Destroy() end
     end
     snakeSegments = {}
     local char = LocalPlayer.Character
@@ -260,7 +250,7 @@ RunService.RenderStepped:Connect(function(delta)
     local humanoid = char.Humanoid
     local hrp = char.HumanoidRootPart
 
-    -- Fly (BodyPosition + BodyGyro)
+    -- Fly
     if flyEnabled then
         if not bodyPosition then
             bodyPosition = Instance.new("BodyPosition", hrp)
@@ -301,11 +291,15 @@ RunService.RenderStepped:Connect(function(delta)
         end
     end
 
-    -- Snake segmentleri
+    -- Snake segmentleri arkadan takip
     if snakeEnabled then
+        local prevPos = hrp.Position
         for _,seg in pairs(snakeSegments) do
-            if seg then
-                seg.CFrame = hrp.CFrame - Vector3.new(0, hrp.Size.Y/2, 0)
+            if seg.Part then
+                local currentPos = seg.Part.Position
+                local newPos = currentPos:Lerp(prevPos, 0.2)
+                seg.Part.CFrame = CFrame.new(newPos, newPos + hrp.CFrame.LookVector)
+                prevPos = seg.Part.Position - (hrp.CFrame.LookVector*segmentDistance)
             end
         end
     end
