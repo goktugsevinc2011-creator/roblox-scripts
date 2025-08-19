@@ -8,10 +8,10 @@ local TweenService = game:GetService("TweenService")
 local espEnabled = false
 local speedEnabled = false
 local flyEnabled = false
+local noclipEnabled = false
 local speedFast = 100
 local flySpeed = 50
-local flyConnection
-local flyVelocity
+local flyPlatform
 
 -- GUI Oluştur
 local ScreenGui = Instance.new("ScreenGui")
@@ -19,7 +19,7 @@ ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0,200,0,200)
+MainFrame.Size = UDim2.new(0,220,0,220)
 MainFrame.Position = UDim2.new(0,20,0,20)
 MainFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
 MainFrame.Parent = ScreenGui
@@ -38,11 +38,11 @@ Title.TextScaled = true
 Title.Parent = MainFrame
 
 -- Küçük yuvarlak butonlar sağ üst
-local function createCircleButton(name, posX, posY)
+local function createCircleButton(name, posX, posY, color)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0,25,0,25)
+    btn.Size = UDim2.new(0,20,0,20)
     btn.Position = UDim2.new(0,posX,0,posY)
-    btn.BackgroundColor3 = Color3.fromRGB(200,50,50)
+    btn.BackgroundColor3 = color
     btn.TextColor3 = Color3.fromRGB(255,255,255)
     btn.Text = name
     btn.Font = Enum.Font.SourceSansBold
@@ -50,19 +50,19 @@ local function createCircleButton(name, posX, posY)
     btn.Parent = MainFrame
 
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0,12)
+    corner.CornerRadius = UDim.new(0,10)
     corner.Parent = btn
 
     return btn
 end
 
-local CloseButton = createCircleButton("X",170,5)
-local MinimizeButton = createCircleButton("_",140,5)
+local CloseButton = createCircleButton("X",200,5,Color3.fromRGB(200,50,50))
+local MinimizeButton = createCircleButton("_",175,5,Color3.fromRGB(50,200,50))
 
 -- Buton oluşturma fonksiyonu
 local function createButton(name, y)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0,160,0,30)
+    btn.Size = UDim2.new(0,180,0,30)
     btn.Position = UDim2.new(0,20,0,y)
     btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
     btn.TextColor3 = Color3.fromRGB(255,255,255)
@@ -80,80 +80,35 @@ end
 local ESPButton = createButton("ESP: Kapalı",50)
 local SpeedButton = createButton("Hız: Kapalı",90)
 local FlyButton = createButton("Fly: Kapalı",130)
+local NoclipButton = createButton("Noclip: Kapalı",170)
 
 -- Küçültme / restore
 local minimized = false
 local normalSize = MainFrame.Size
 
-local function tweenFrameSize(newSize)
-    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = newSize})
-    tween:Play()
-end
-
 MinimizeButton.MouseButton1Click:Connect(function()
-    if not minimized then
-        minimized = true
-        tweenFrameSize(UDim2.new(0,200,0,35))
+    minimized = not minimized
+    if minimized then
+        TweenService:Create(MainFrame, TweenInfo.new(0.3), {Size = UDim2.new(0,100,0,30)}):Play()
         for _, child in pairs(MainFrame:GetChildren()) do
-            if child:IsA("TextButton") and child ~= MinimizeButton and child ~= CloseButton then
+            if child:IsA("TextButton") and child ~= CloseButton and child ~= MinimizeButton then
                 child.Visible = false
             end
         end
-    end
-end)
-
-UserInputService.InputBegan:Connect(function(input, processed)
-    if processed then return end
-    if input.KeyCode == Enum.KeyCode.LeftAlt and UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
-        if minimized then
-            minimized = false
-            tweenFrameSize(normalSize)
-            for _, child in pairs(MainFrame:GetChildren()) do
-                if child:IsA("TextButton") then
-                    child.Visible = true
-                end
+    else
+        TweenService:Create(MainFrame, TweenInfo.new(0.3), {Size = normalSize}):Play()
+        for _, child in pairs(MainFrame:GetChildren()) do
+            if child:IsA("TextButton") then
+                child.Visible = true
             end
         end
-    end
-end)
-
--- GUI Drag
-local dragging = false
-local dragInput
-local dragStart
-local startPos
-
-Title.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
-
-Title.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
 
 -- Script Kapat
 CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
-    if flyConnection then flyConnection:Disconnect() end
-    if flyVelocity then flyVelocity:Destroy() end
+    if flyPlatform then flyPlatform:Destroy() end
     for _, player in pairs(Players:GetPlayers()) do
         if player.Character then
             local highlight = player.Character:FindFirstChildOfClass("Highlight")
@@ -180,7 +135,7 @@ end)
 LocalPlayer.CharacterAdded:Connect(updateSpeed)
 updateSpeed()
 
--- Fly
+-- Fly + platform
 FlyButton.MouseButton1Click:Connect(function()
     flyEnabled = not flyEnabled
     FlyButton.Text = flyEnabled and "Fly: Açık" or "Fly: Kapalı"
@@ -188,35 +143,63 @@ FlyButton.MouseButton1Click:Connect(function()
     local char = LocalPlayer.Character
     if not char then return end
     local hrp = char:FindFirstChild("HumanoidRootPart")
-    local humanoid = char:FindFirstChild("Humanoid")
-    if not hrp or not humanoid then return end
+    if not hrp then return end
 
     if flyEnabled then
-        humanoid.PlatformStand = true
-        hrp.CFrame = hrp.CFrame + Vector3.new(0,50,0)
+        -- Görünmez platform
+        flyPlatform = Instance.new("Part")
+        flyPlatform.Size = Vector3.new(6,1,6)
+        flyPlatform.Transparency = 1
+        flyPlatform.Anchored = true
+        flyPlatform.CanCollide = true
+        flyPlatform.Position = hrp.Position - Vector3.new(0,3,0)
+        flyPlatform.Parent = workspace
 
-        -- BodyVelocity ile yerçekimini iptal et
-        flyVelocity = Instance.new("BodyVelocity")
-        flyVelocity.MaxForce = Vector3.new(1e5,1e5,1e5)
-        flyVelocity.Velocity = Vector3.new(0,0,0)
-        flyVelocity.Parent = hrp
+        local platformUpdate
+        platformUpdate = RunService.RenderStepped:Connect(function()
+            if not flyEnabled then
+                platformUpdate:Disconnect()
+                flyPlatform:Destroy()
+                return
+            end
 
-        flyConnection = RunService.RenderStepped:Connect(function()
             local moveDir = Vector3.new()
             local cam = workspace.CurrentCamera
             if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
             if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
             if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
             if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0,1,0) end
-            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0,1,0) end
 
-            flyVelocity.Velocity = moveDir.Magnitude > 0 and moveDir.Unit * flySpeed or Vector3.new(0,0,0)
+            flyPlatform.Position = flyPlatform.Position + (moveDir.Unit * flySpeed * RunService.RenderStepped:Wait())
+            hrp.CFrame = CFrame.new(flyPlatform.Position + Vector3.new(0,3,0))
         end)
     else
-        if flyConnection then flyConnection:Disconnect() end
-        if flyVelocity then flyVelocity:Destroy() end
-        humanoid.PlatformStand = false
+        if flyPlatform then
+            flyPlatform:Destroy()
+        end
+    end
+end)
+
+-- Noclip
+local function setNoclip(state)
+    noclipEnabled = state
+    for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = not noclipEnabled
+        end
+    end
+end
+
+NoclipButton.MouseButton1Click:Connect(function()
+    noclipEnabled = not noclipEnabled
+    NoclipButton.Text = noclipEnabled and "Noclip: Açık" or "Noclip: Kapalı"
+    setNoclip(noclipEnabled)
+end)
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+    if noclipEnabled then
+        char:WaitForChild("HumanoidRootPart")
+        setNoclip(true)
     end
 end)
 
