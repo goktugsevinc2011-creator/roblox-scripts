@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 -- ==================== Ayarlar ====================
 local espEnabled = false
@@ -36,7 +37,7 @@ Title.Font = Enum.Font.SourceSansBold
 Title.TextScaled = true
 Title.Parent = MainFrame
 
--- Buton yaratma fonksiyonu
+-- ==================== Buton yaratma fonksiyonu ====================
 local function createButton(name, y)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0,180,0,40)
@@ -63,14 +64,23 @@ local MinimizeButton = createButton("_",200)
 local CloseButton = createButton("X",200)
 CloseButton.Position = UDim2.new(0,110,0,200)
 
--- GUI minimize/restore
+-- ==================== GUI Küçültme / Restore ====================
 local minimized = false
+local normalSize = MainFrame.Size
+
+local function tweenFrameSize(newSize)
+    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = newSize})
+    tween:Play()
+end
+
 MinimizeButton.MouseButton1Click:Connect(function()
-    minimized = true
-    MainFrame.Size = UDim2.new(0, 100, 0, 30)
-    for _, child in pairs(MainFrame:GetChildren()) do
-        if child:IsA("TextButton") and child ~= MinimizeButton and child ~= CloseButton then
-            child.Visible = false
+    if not minimized then
+        minimized = true
+        tweenFrameSize(UDim2.new(0,100,0,30))
+        for _, child in pairs(MainFrame:GetChildren()) do
+            if child:IsA("TextButton") and child ~= MinimizeButton and child ~= CloseButton then
+                child.Visible = false
+            end
         end
     end
 end)
@@ -80,7 +90,7 @@ UserInputService.InputBegan:Connect(function(input, processed)
     if input.KeyCode == Enum.KeyCode.LeftAlt and UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
         if minimized then
             minimized = false
-            MainFrame.Size = UDim2.new(0,200,0,250)
+            tweenFrameSize(normalSize)
             for _, child in pairs(MainFrame:GetChildren()) do
                 if child:IsA("TextButton") then
                     child.Visible = true
@@ -90,7 +100,39 @@ UserInputService.InputBegan:Connect(function(input, processed)
     end
 end)
 
--- Script tamamen kapatma
+-- ==================== GUI Drag ====================
+local dragging = false
+local dragInput
+local dragStart
+local startPos
+
+Title.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+Title.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- ==================== Script Kapat ====================
 CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
     if flyConnection then flyConnection:Disconnect() end
