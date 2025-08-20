@@ -8,10 +8,9 @@ local Workspace = game:GetService("Workspace")
 
 --// Ayarlar
 local espEnabled, speedEnabled, flyEnabled, noclipEnabled, snakeEnabled = false,false,false,false,false
-local speedFast, flySpeed = 100,50
+local speedFast, flySpeed = 50,30 -- anti-cheat için orta değerler
 local snakeSegments = {}
-local bodyPosition, bodyGyro
-local segmentDistance = 2 -- snake segment arası boşluk
+local segmentDistance = 2
 
 --// GUI
 local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
@@ -22,10 +21,11 @@ MainFrame.Position = UDim2.new(0,20,0,20)
 MainFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
 MainFrame.Parent = ScreenGui
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0,10)
+
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1,0,0,30)
 Title.BackgroundTransparency = 1
-Title.Text = "Script GUI"
+Title.Text = "Steal a Brainrot GUI"
 Title.TextColor3 = Color3.fromRGB(255,255,255)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextScaled = true
@@ -90,12 +90,10 @@ CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
     flyEnabled=false
     snakeEnabled=false
-    if bodyPosition then bodyPosition:Destroy() end
-    if bodyGyro then bodyGyro:Destroy() end
     for _,seg in pairs(snakeSegments) do if seg.Part then seg.Part:Destroy() end end
 end)
 
--- Hız
+-- Speed
 SpeedButton.MouseButton1Click:Connect(function()
     speedEnabled = not speedEnabled
     SpeedButton.Text = speedEnabled and "Hız: Açık" or "Hız: Kapalı"
@@ -121,15 +119,6 @@ local espObjects={}
 local function createESP(player)
     if espObjects[player] then return end
     if not player.Character then return end
-    local highlight=Instance.new("Highlight")
-    highlight.Adornee=player.Character
-    highlight.FillColor=Color3.fromRGB(255,0,0)
-    highlight.FillTransparency=0.5
-    highlight.OutlineColor=Color3.fromRGB(255,0,0)
-    highlight.OutlineTransparency=0
-    highlight.Enabled=espEnabled
-    highlight.Parent=player.Character
-
     local head=player.Character:WaitForChild("Head")
     local billboard=Instance.new("BillboardGui")
     billboard.Adornee=head
@@ -150,12 +139,11 @@ local function createESP(player)
     textLabel.Text = player.Name
     textLabel.Parent = billboard
 
-    espObjects[player]={Highlight=highlight,Billboard=billboard,TextLabel=textLabel}
+    espObjects[player]={Billboard=billboard,TextLabel=textLabel}
 end
 
 local function removeESP(player)
     if espObjects[player] then
-        if espObjects[player].Highlight then espObjects[player].Highlight:Destroy() end
         if espObjects[player].Billboard then espObjects[player].Billboard:Destroy() end
         espObjects[player]=nil
     end
@@ -165,7 +153,6 @@ local function updateESP()
     for _,player in pairs(Players:GetPlayers()) do
         if player~=LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             if not espObjects[player] then createESP(player) else
-                espObjects[player].Highlight.Enabled=espEnabled
                 espObjects[player].Billboard.Enabled=espEnabled
                 local dist=(LocalPlayer.Character.HumanoidRootPart.Position-player.Character.HumanoidRootPart.Position).Magnitude
                 espObjects[player].TextLabel.Text=player.Name.." | "..math.floor(dist).." studs"
@@ -190,7 +177,7 @@ Players.PlayerRemoving:Connect(removeESP)
 for _,player in pairs(Players:GetPlayers()) do if player.Character then createESP(player) end end
 spawn(function() while true do wait(5) updateESP() end end)
 
--- Snake (arkadan uzayan)
+-- Snake
 local function createSnake()
     local char = LocalPlayer.Character
     if not char then return end
@@ -198,22 +185,12 @@ local function createSnake()
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
-    -- Karakteri görünmez yap
-    for _,part in pairs(char:GetChildren()) do
-        if part:IsA("BasePart") then part.Transparency = 1
-        elseif part:IsA("Accessory") then
-            local handle = part:FindFirstChild("Handle")
-            if handle then handle.Transparency = 1 end
-        end
-    end
-
-    local prevCFrame = hrp.CFrame
     for _,part in pairs(char:GetChildren()) do
         if part:IsA("BasePart") or (part:IsA("Accessory") and part:FindFirstChild("Handle")) then
             local clone = (part:IsA("Accessory") and part.Handle or part):Clone()
             clone.Anchored = true
             clone.CanCollide = false
-            clone.CFrame = prevCFrame - Vector3.new(0, hrp.Size.Y/2, 0)
+            clone.CFrame = hrp.CFrame
             clone.Parent = Workspace
             table.insert(snakeSegments, {Part=clone})
         end
@@ -225,16 +202,6 @@ local function removeSnake()
         if seg.Part then seg.Part:Destroy() end
     end
     snakeSegments = {}
-    local char = LocalPlayer.Character
-    if char then
-        for _,part in pairs(char:GetChildren()) do
-            if part:IsA("BasePart") then part.Transparency = 0 end
-            if part:IsA("Accessory") then
-                local handle = part:FindFirstChild("Handle")
-                if handle then handle.Transparency = 0 end
-            end
-        end
-    end
 end
 
 SnakeButton.MouseButton1Click:Connect(function()
@@ -246,24 +213,11 @@ end)
 -- RunService
 RunService.RenderStepped:Connect(function(delta)
     local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("Humanoid") then return end
-    local humanoid = char.Humanoid
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     local hrp = char.HumanoidRootPart
 
     -- Fly
     if flyEnabled then
-        if not bodyPosition then
-            bodyPosition = Instance.new("BodyPosition", hrp)
-            bodyPosition.MaxForce = Vector3.new(1e5,1e5,1e5)
-            bodyPosition.D = 10
-            bodyPosition.P = 1e4
-        end
-        if not bodyGyro then
-            bodyGyro = Instance.new("BodyGyro", hrp)
-            bodyGyro.MaxTorque = Vector3.new(1e5,1e5,1e5)
-            bodyGyro.D = 10
-        end
-
         local cam = workspace.CurrentCamera
         local moveDir = Vector3.new()
         if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
@@ -274,14 +228,8 @@ RunService.RenderStepped:Connect(function(delta)
         if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0,1,0) end
 
         if moveDir.Magnitude>0 then
-            bodyPosition.Position = hrp.Position + moveDir.Unit * flySpeed * delta
-        else
-            bodyPosition.Position = hrp.Position
+            hrp.CFrame = hrp.CFrame + moveDir.Unit * flySpeed * delta
         end
-        bodyGyro.CFrame = CFrame.new(hrp.Position, hrp.Position + cam.CFrame.LookVector)
-    else
-        if bodyPosition then bodyPosition:Destroy() bodyPosition=nil end
-        if bodyGyro then bodyGyro:Destroy() bodyGyro=nil end
     end
 
     -- Noclip
@@ -291,7 +239,7 @@ RunService.RenderStepped:Connect(function(delta)
         end
     end
 
-    -- Snake segmentleri arkadan takip
+    -- Snake
     if snakeEnabled then
         local prevPos = hrp.Position
         for _,seg in pairs(snakeSegments) do
