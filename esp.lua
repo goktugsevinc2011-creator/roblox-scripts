@@ -1,254 +1,244 @@
 --// Servisler
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 
---// Ayarlar
-local espEnabled, speedEnabled, flyEnabled, noclipEnabled, snakeEnabled = false,false,false,false,false
-local speedFast, flySpeed = 50,30 -- anti-cheat için orta değerler
-local snakeSegments = {}
-local segmentDistance = 2
+--// ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CustomHub"
+screenGui.Parent = game.CoreGui
 
---// GUI
-local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-ScreenGui.ResetOnSpawn = false
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0,220,0,260)
-MainFrame.Position = UDim2.new(0,20,0,20)
-MainFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
-MainFrame.Parent = ScreenGui
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0,10)
+--------------------------------------------------
+-- ============ LOADING SCREEN ===================
+--------------------------------------------------
+local loadingFrame = Instance.new("Frame", screenGui)
+loadingFrame.Size = UDim2.new(0.3,0,0.15,0)
+loadingFrame.Position = UDim2.new(0.35,0,0.4,0)
+loadingFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+loadingFrame.Visible = true
+Instance.new("UICorner", loadingFrame)
 
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1,0,0,30)
-Title.BackgroundTransparency = 1
-Title.Text = "Steal a Brainrot GUI"
-Title.TextColor3 = Color3.fromRGB(255,255,255)
-Title.Font = Enum.Font.SourceSansBold
-Title.TextScaled = true
-Title.Parent = MainFrame
+local loadingText = Instance.new("TextLabel", loadingFrame)
+loadingText.Size = UDim2.new(1,0,0.5,0)
+loadingText.BackgroundTransparency = 1
+loadingText.Text = "Loading..."
+loadingText.TextScaled = true
+loadingText.TextColor3 = Color3.fromRGB(255,255,255)
+loadingText.Font = Enum.Font.GothamBold
 
-local function createCircleButton(name,posX,posY,color)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0,20,0,20)
-    btn.Position = UDim2.new(0,posX,0,posY)
-    btn.BackgroundColor3 = color
-    btn.TextColor3 = Color3.fromRGB(255,255,255)
-    btn.Text = name
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextScaled = true
-    btn.Parent = MainFrame
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,10)
-    return btn
-end
+local progressBg = Instance.new("Frame", loadingFrame)
+progressBg.Size = UDim2.new(0.9,0,0.2,0)
+progressBg.Position = UDim2.new(0.05,0,0.7,0)
+progressBg.BackgroundColor3 = Color3.fromRGB(50,50,50)
+Instance.new("UICorner", progressBg)
 
-local CloseButton = createCircleButton("X",200,5,Color3.fromRGB(200,50,50))
-local MinimizeButton = createCircleButton("_",175,5,Color3.fromRGB(50,200,50))
+local progressBar = Instance.new("Frame", progressBg)
+progressBar.Size = UDim2.new(1,0,1,0)
+progressBar.BackgroundColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", progressBar)
 
-local function createButton(name,y)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0,180,0,30)
-    btn.Position = UDim2.new(0,20,0,y)
-    btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
-    btn.TextColor3 = Color3.fromRGB(255,255,255)
-    btn.Text = name
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextScaled = true
-    btn.Parent = MainFrame
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
-    return btn
-end
+local discordLink = Instance.new("TextButton", screenGui)
+discordLink.Size = UDim2.new(0,250,0,40)
+discordLink.Position = UDim2.new(1,-260,1,-50)
+discordLink.BackgroundColor3 = Color3.fromRGB(30,30,30)
+discordLink.Text = "Join Discord: discord.gg/6ftjD72nbm"
+discordLink.TextColor3 = Color3.fromRGB(255,255,255)
+discordLink.Font = Enum.Font.Gotham
+discordLink.TextScaled = true
+Instance.new("UICorner", discordLink)
 
-local ESPButton = createButton("ESP: Kapalı",50)
-local SpeedButton = createButton("Hız: Kapalı",90)
-local FlyButton = createButton("Fly: Kapalı",130)
-local NoclipButton = createButton("Noclip: Kapalı",170)
-local SnakeButton = createButton("Yılan: Kapalı",210)
+discordLink.MouseButton1Click:Connect(function()
+    setclipboard("https://discord.gg/6ftjD72nbm")
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Discord",
+        Text = "Link panoya kopyalandı!",
+        Duration = 5
+    })
+end)
 
--- Küçültme / Restore
-local minimized=false
-local normalSize = MainFrame.Size
-MinimizeButton.MouseButton1Click:Connect(function()
-    minimized = not minimized
-    if minimized then
-        TweenService:Create(MainFrame,TweenInfo.new(0.3),{Size=UDim2.new(0,100,0,30)}):Play()
-        for _,child in pairs(MainFrame:GetChildren()) do
-            if child:IsA("TextButton") and child~=CloseButton and child~=MinimizeButton then child.Visible=false end
-        end
-    else
-        TweenService:Create(MainFrame,TweenInfo.new(0.3),{Size=normalSize}):Play()
-        for _,child in pairs(MainFrame:GetChildren()) do
-            if child:IsA("TextButton") then child.Visible=true end
-        end
+TweenService:Create(progressBar, TweenInfo.new(5, Enum.EasingStyle.Linear), {Size = UDim2.new(0,0,1,0)}):Play()
+
+--------------------------------------------------
+-- ============ ANA HUB ==========================
+--------------------------------------------------
+task.delay(5, function()
+    loadingFrame:Destroy()
+    discordLink:Destroy()
+
+    -- Ana frame
+    local hubFrame = Instance.new("Frame", screenGui)
+    hubFrame.Size = UDim2.new(0.4,0,0.5,0)
+    hubFrame.Position = UDim2.new(0.3,0,0.25,0)
+    hubFrame.BackgroundColor3 = Color3.fromRGB(35,35,35)
+    hubFrame.Active = true
+    hubFrame.Draggable = true
+    Instance.new("UICorner", hubFrame)
+
+    local tabHolder = Instance.new("Frame", hubFrame)
+    tabHolder.Size = UDim2.new(0.25,0,1,0)
+    tabHolder.BackgroundColor3 = Color3.fromRGB(25,25,25)
+    Instance.new("UICorner", tabHolder)
+
+    local contentFrame = Instance.new("Frame", hubFrame)
+    contentFrame.Size = UDim2.new(0.75,0,1,0)
+    contentFrame.Position = UDim2.new(0.25,0,0,0)
+    contentFrame.BackgroundColor3 = Color3.fromRGB(45,45,45)
+    Instance.new("UICorner", contentFrame)
+
+    -- Tab sistemi
+    local tabs = {}
+    local function createTab(name)
+        local button = Instance.new("TextButton", tabHolder)
+        button.Size = UDim2.new(1,0,0,40)
+        button.Text = name
+        button.TextScaled = true
+        button.TextColor3 = Color3.fromRGB(255,255,255)
+        button.BackgroundColor3 = Color3.fromRGB(30,30,30)
+        Instance.new("UICorner", button)
+
+        local frame = Instance.new("Frame", contentFrame)
+        frame.Size = UDim2.new(1,0,1,0)
+        frame.Visible = false
+        frame.BackgroundTransparency = 1
+
+        button.MouseButton1Click:Connect(function()
+            for _,t in pairs(tabs) do t.frame.Visible = false end
+            frame.Visible = true
+        end)
+
+        table.insert(tabs, {button=button, frame=frame})
+        return frame
     end
-end)
 
-CloseButton.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
-    flyEnabled=false
-    snakeEnabled=false
-    for _,seg in pairs(snakeSegments) do if seg.Part then seg.Part:Destroy() end end
-end)
-
--- Speed
-SpeedButton.MouseButton1Click:Connect(function()
-    speedEnabled = not speedEnabled
-    SpeedButton.Text = speedEnabled and "Hız: Açık" or "Hız: Kapalı"
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.WalkSpeed = speedEnabled and speedFast or 16
-    end
-end)
-
--- Fly
-FlyButton.MouseButton1Click:Connect(function()
-    flyEnabled = not flyEnabled
-    FlyButton.Text = flyEnabled and "Fly: Açık" or "Fly: Kapalı"
-end)
-
--- Noclip
-NoclipButton.MouseButton1Click:Connect(function()
-    noclipEnabled = not noclipEnabled
-    NoclipButton.Text = noclipEnabled and "Noclip: Açık" or "Noclip: Kapalı"
-end)
-
--- ESP
-local espObjects={}
-local function createESP(player)
-    if espObjects[player] then return end
-    if not player.Character then return end
-    local head=player.Character:WaitForChild("Head")
-    local billboard=Instance.new("BillboardGui")
-    billboard.Adornee=head
-    billboard.Size=UDim2.new(0,100,0,30)
-    billboard.StudsOffset=Vector3.new(0,2,0)
-    billboard.AlwaysOnTop=true
-    billboard.Enabled=espEnabled
-    billboard.Parent=player.Character
-
-    local textLabel=Instance.new("TextLabel")
-    textLabel.Size = UDim2.new(1,0,1,0)
-    textLabel.BackgroundTransparency = 1
-    textLabel.TextColor3 = Color3.fromRGB(255,255,255)
-    textLabel.TextStrokeColor3 = Color3.fromRGB(0,0,0)
-    textLabel.TextStrokeTransparency = 0
-    textLabel.TextScaled = false
-    textLabel.Font = Enum.Font.SourceSansBold
-    textLabel.Text = player.Name
-    textLabel.Parent = billboard
-
-    espObjects[player]={Billboard=billboard,TextLabel=textLabel}
-end
-
-local function removeESP(player)
-    if espObjects[player] then
-        if espObjects[player].Billboard then espObjects[player].Billboard:Destroy() end
-        espObjects[player]=nil
-    end
-end
-
-local function updateESP()
-    for _,player in pairs(Players:GetPlayers()) do
-        if player~=LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            if not espObjects[player] then createESP(player) else
-                espObjects[player].Billboard.Enabled=espEnabled
-                local dist=(LocalPlayer.Character.HumanoidRootPart.Position-player.Character.HumanoidRootPart.Position).Magnitude
-                espObjects[player].TextLabel.Text=player.Name.." | "..math.floor(dist).." studs"
-            end
-        end
-    end
-end
-
-ESPButton.MouseButton1Click:Connect(function()
-    espEnabled=not espEnabled
-    ESPButton.Text=espEnabled and "ESP: Açık" or "ESP: Kapalı"
-    updateESP()
-end)
-
-Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function()
-        if espEnabled then createESP(player) end
-    end)
-end)
-
-Players.PlayerRemoving:Connect(removeESP)
-for _,player in pairs(Players:GetPlayers()) do if player.Character then createESP(player) end end
-spawn(function() while true do wait(5) updateESP() end end)
-
--- Snake
-local function createSnake()
-    local char = LocalPlayer.Character
-    if not char then return end
-    snakeSegments = {}
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-
-    for _,part in pairs(char:GetChildren()) do
-        if part:IsA("BasePart") or (part:IsA("Accessory") and part:FindFirstChild("Handle")) then
-            local clone = (part:IsA("Accessory") and part.Handle or part):Clone()
-            clone.Anchored = true
-            clone.CanCollide = false
-            clone.CFrame = hrp.CFrame
-            clone.Parent = Workspace
-            table.insert(snakeSegments, {Part=clone})
-        end
-    end
-end
-
-local function removeSnake()
-    for _,seg in pairs(snakeSegments) do
-        if seg.Part then seg.Part:Destroy() end
-    end
-    snakeSegments = {}
-end
-
-SnakeButton.MouseButton1Click:Connect(function()
-    snakeEnabled = not snakeEnabled
-    SnakeButton.Text = snakeEnabled and "Yılan: Açık" or "Yılan: Kapalı"
-    if snakeEnabled then createSnake() else removeSnake() end
-end)
-
--- RunService
-RunService.RenderStepped:Connect(function(delta)
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = char.HumanoidRootPart
+    --------------------------------------------------
+    -- Player Tab
+    --------------------------------------------------
+    local playerTab = createTab("Player")
 
     -- Fly
-    if flyEnabled then
-        local cam = workspace.CurrentCamera
-        local moveDir = Vector3.new()
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0,1,0) end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0,1,0) end
+    local flying = false
+    local flyBtn = Instance.new("TextButton", playerTab)
+    flyBtn.Size = UDim2.new(0.5,0,0,40)
+    flyBtn.Position = UDim2.new(0.25,0,0.1,0)
+    flyBtn.Text = "Toggle Fly"
+    flyBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    flyBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", flyBtn)
 
-        if moveDir.Magnitude>0 then
-            hrp.CFrame = hrp.CFrame + moveDir.Unit * flySpeed * delta
+    local vel = Instance.new("BodyVelocity")
+    vel.MaxForce = Vector3.new(0,0,0)
+
+    flyBtn.MouseButton1Click:Connect(function()
+        flying = not flying
+        if flying then
+            vel.Parent = LocalPlayer.Character.HumanoidRootPart
+            vel.MaxForce = Vector3.new(4000,4000,4000)
+        else
+            vel.MaxForce = Vector3.new(0,0,0)
+        end
+    end)
+
+    RunService.RenderStepped:Connect(function()
+        if flying then
+            local dir = Vector3.zero
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += workspace.CurrentCamera.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= workspace.CurrentCamera.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= workspace.CurrentCamera.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += workspace.CurrentCamera.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
+            vel.Velocity = dir * 50
+        end
+    end)
+
+    -- Infinite Jump
+    local infJump = false
+    local jumpBtn = Instance.new("TextButton", playerTab)
+    jumpBtn.Size = UDim2.new(0.5,0,0,40)
+    jumpBtn.Position = UDim2.new(0.25,0,0.25,0)
+    jumpBtn.Text = "Toggle Infinite Jump"
+    jumpBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    jumpBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", jumpBtn)
+
+    jumpBtn.MouseButton1Click:Connect(function()
+        infJump = not infJump
+    end)
+
+    UserInputService.JumpRequest:Connect(function()
+        if infJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+            LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+        end
+    end)
+
+    -- ESP
+    local espEnabled = false
+    local espBtn = Instance.new("TextButton", playerTab)
+    espBtn.Size = UDim2.new(0.5,0,0,40)
+    espBtn.Position = UDim2.new(0.25,0,0.4,0)
+    espBtn.Text = "Toggle ESP"
+    espBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    espBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", espBtn)
+
+    local function createESP(plr)
+        if plr.Character and not plr.Character:FindFirstChild("EspBox") then
+            local highlight = Instance.new("Highlight", plr.Character)
+            highlight.Name = "EspBox"
+            highlight.FillTransparency = 1
+            highlight.OutlineColor = Color3.fromRGB(0,255,0)
         end
     end
 
-    -- Noclip
-    if noclipEnabled then
-        for _,part in pairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then part.CanCollide=false end
-        end
-    end
-
-    -- Snake
-    if snakeEnabled then
-        local prevPos = hrp.Position
-        for _,seg in pairs(snakeSegments) do
-            if seg.Part then
-                local currentPos = seg.Part.Position
-                local newPos = currentPos:Lerp(prevPos, 0.2)
-                seg.Part.CFrame = CFrame.new(newPos, newPos + hrp.CFrame.LookVector)
-                prevPos = seg.Part.Position - (hrp.CFrame.LookVector*segmentDistance)
+    espBtn.MouseButton1Click:Connect(function()
+        espEnabled = not espEnabled
+        for _,p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                if espEnabled then createESP(p)
+                else if p.Character and p.Character:FindFirstChild("EspBox") then p.Character.EspBox:Destroy() end end
             end
         end
-    end
+    end)
+
+    --------------------------------------------------
+    -- Fun Tab
+    --------------------------------------------------
+    local funTab = createTab("Fun")
+
+    -- Snake (karakter parçalarından)
+    local snakeEnabled = false
+    local snakeBtn = Instance.new("TextButton", funTab)
+    snakeBtn.Size = UDim2.new(0.5,0,0,40)
+    snakeBtn.Position = UDim2.new(0.25,0,0.1,0)
+    snakeBtn.Text = "Toggle Snake"
+    snakeBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    snakeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", snakeBtn)
+
+    snakeBtn.MouseButton1Click:Connect(function()
+        snakeEnabled = not snakeEnabled
+        if snakeEnabled then
+            for _,part in pairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") or part:IsA("Accessory") then
+                    part.Transparency = 0
+                    part.Material = Enum.Material.Neon
+                    part.Color = Color3.fromRGB(0,255,0)
+                end
+            end
+        else
+            for _,part in pairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") or part:IsA("Accessory") then
+                    part.Material = Enum.Material.Plastic
+                    part.Color = Color3.fromRGB(255,255,255)
+                end
+            end
+        end
+    end)
+
+    --------------------------------------------------
+    -- İlk açılan tab Player olsun
+    --------------------------------------------------
+    tabs[1].frame.Visible = true
 end)
