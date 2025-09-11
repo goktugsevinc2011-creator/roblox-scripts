@@ -7,8 +7,9 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 -- ===== SETTINGS =====
-local ScriptEnabled = true -- tek buton ile açıp kapatma
+local ScriptEnabled = true
 local AimSensitivity, CircleRadius, MaxDistance = 0.1,150,100
+local CamDistance, CamHeight = 8, 2  -- 3rd person distance & height
 
 -- ===== HIGHLIGHT FOLDER =====
 local HFolder = Instance.new("Folder",workspace)
@@ -123,21 +124,22 @@ spawn(function()
     end
 end)
 
--- ===== Free Camera =====
-local yaw,pitch,sens=0,0,0.3
-UserInputService.InputChanged:Connect(function(i)
-    if i.UserInputType==Enum.UserInputType.MouseMovement then
-        yaw=yaw+i.Delta.X*sens
-        pitch=math.clamp(pitch-i.Delta.Y*sens,-80,80)
+-- ===== 3rd PERSON CAMERA (Character Yönünü Etkilemeden) =====
+local camYaw, camPitch = 0,0
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        camYaw = camYaw + input.Delta.X * 0.3
+        camPitch = math.clamp(camPitch - input.Delta.Y * 0.3, -50, 50)
     end
 end)
+
 RunService.RenderStepped:Connect(function()
-    local c=LocalPlayer.Character
-    if c and c:FindFirstChild("HumanoidRootPart") then
-        local pos=c.HumanoidRootPart.Position+Vector3.new(0,3,0)
-        Camera.CameraType=Enum.CameraType.Scriptable
-        Camera.CFrame=CFrame.new(pos)*CFrame.Angles(math.rad(pitch),math.rad(yaw),0)
-    end
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+    local root = LocalPlayer.Character.HumanoidRootPart
+    local camPos = root.Position - (root.CFrame.LookVector * CamDistance) + Vector3.new(0,CamHeight,0)
+    local offset = CFrame.Angles(math.rad(camPitch), math.rad(camYaw),0)
+    Camera.CFrame = CFrame.new(camPos) * offset + root.Position
+    Camera.CameraType = Enum.CameraType.Custom
 end)
 
 -- ===== AimAssist + CircleAimbot =====
