@@ -1,5 +1,5 @@
 -- Roblox Player ESP + Aimbot + Third-Person Camera GUI
--- Full Combined Script
+-- Full Combined Script with Thin Outline Circle
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -29,7 +29,6 @@ Slider.TextColor3 = Color3.fromRGB(0,0,0)
 local AimbotRange = 50
 
 Slider.MouseButton1Down:Connect(function()
-    local mouse = UserInputService:GetMouseLocation()
     AimbotRange = math.clamp(AimbotRange + 10, 10, 500)
     Slider.Text = "Aimbot Range: "..AimbotRange
 end)
@@ -65,11 +64,12 @@ local function updateNametag(player)
     end
 end
 
--- White Circle on Screen
+-- White Thin Outline Circle on Screen
 local Circle = Drawing.new("Circle")
 Circle.Radius = 100
 Circle.Color = Color3.fromRGB(255,255,255)
-Circle.Thickness = 2
+Circle.Thickness = 1       -- thin outline
+Circle.Filled = false       -- empty center
 Circle.Visible = true
 
 -- Main Loop
@@ -81,7 +81,7 @@ RunService.RenderStepped:Connect(function()
             updateNametag(player)
         end
     end
-    -- Update Circle
+    -- Update Circle Position
     Circle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
 end)
 
