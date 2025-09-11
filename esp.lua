@@ -1,15 +1,19 @@
 -- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local localPlayer = Players.LocalPlayer
+local camera = workspace.CurrentCamera
 local highlightFolder = Instance.new("Folder")
 highlightFolder.Name = "PlayerHighlights"
 highlightFolder.Parent = workspace
 
 local ESPEnabled = true -- başlangıçta açık
 
--- ESP toggle GUI
+-- ======================================
+-- 1) ESP Toggle GUI
+-- ======================================
 local function createESPGui()
 	local playerGui = localPlayer:WaitForChild("PlayerGui")
 	
@@ -56,7 +60,9 @@ end
 
 createESPGui()
 
--- Highlight ve nametag
+-- ======================================
+-- 2) Highlight & Nametag
+-- ======================================
 local function createHighlight(player)
 	if not ESPEnabled then return end
 	if player == localPlayer then return end
@@ -126,13 +132,29 @@ for _, player in pairs(Players:GetPlayers()) do
 end
 
 -- 0.5 saniyede güncelle
-while true do
-	if ESPEnabled then
-		for _, player in pairs(Players:GetPlayers()) do
-			if player ~= localPlayer and player.Character then
-				createHighlight(player)
+spawn(function()
+	while true do
+		if ESPEnabled then
+			for _, player in pairs(Players:GetPlayers()) do
+				if player ~= localPlayer and player.Character then
+					createHighlight(player)
+				end
 			end
 		end
+		wait(0.5)
 	end
-	wait(0.5)
-end
+end)
+
+-- ======================================
+-- 3) Kamera Kilidini Kaldırma
+-- ======================================
+RunService.RenderStepped:Connect(function()
+	-- CameraType her zaman Custom
+	if camera.CameraType ~= Enum.CameraType.Custom then
+		camera.CameraType = Enum.CameraType.Custom
+	end
+	-- FieldOfView sabit
+	if camera.FieldOfView < 70 then
+		camera.FieldOfView = 70
+	end
+end)
