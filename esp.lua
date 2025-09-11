@@ -1,150 +1,248 @@
--- Roblox ESP + Aimbot + Draggable Slider + Toggle Keys + First-Person Unlock
+-- ======================================
+-- Rival style persistent ESP + Camera + AimAssist + CircleAimbot
+-- ======================================
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 
--- Settings
+-- Folder for highlights
+local highlightFolder = Instance.new("Folder")
+highlightFolder.Name = "PlayerHighlights"
+highlightFolder.Parent = workspace
+
+-- Toggles & Settings
 local ESPEnabled = true
-local AimbotEnabled = true
-local AimbotRange = 100
+local AimAssistEnabled = false
+local CircleAimbotEnabled = false
+local AimSensitivity = 0.1
+local CircleRadius = 150
+local MaxDistance = 100
 
--- GUI Setup
-local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-ScreenGui.ResetOnSpawn = false
+-- ======================================
+-- GUI (CoreGui) Persistent
+-- ======================================
+local function createGUI()
+    if game:GetService("CoreGui"):FindFirstChild("MainControlGui") then return end
 
-local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0, 250, 0, 50)
-Frame.Position = UDim2.new(0.5, -125, 0, 50)
-Frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
-Frame.BackgroundTransparency = 0.5
-Frame.Active = true
-Frame.Draggable = true
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "MainControlGui"
+    screenGui.Parent = game:GetService("CoreGui")
 
--- Slider Label
-local SliderLabel = Instance.new("TextLabel", Frame)
-SliderLabel.Size = UDim2.new(0, 150, 1, 0)
-SliderLabel.Position = UDim2.new(0,5,0,0)
-SliderLabel.BackgroundTransparency = 1
-SliderLabel.TextColor3 = Color3.fromRGB(255,255,255)
-SliderLabel.Text = "Aimbot Range: "..AimbotRange
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 220, 0, 260)
+    frame.Position = UDim2.new(0,50,0,50)
+    frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+    frame.BackgroundTransparency = 0.2
+    frame.BorderSizePixel = 0
+    frame.Active = true
+    frame.Draggable = true
+    frame.Parent = screenGui
 
--- Slider Bar
-local SliderBar = Instance.new("Frame", Frame)
-SliderBar.Size = UDim2.new(0, 200, 0, 10)
-SliderBar.Position = UDim2.new(0, 40, 0.5, -5)
-SliderBar.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0,6)
+    layout.FillDirection = Enum.FillDirection.Vertical
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.Parent = frame
 
-local SliderKnob = Instance.new("Frame", SliderBar)
-SliderKnob.Size = UDim2.new(0, 10, 1, 0)
-SliderKnob.Position = UDim2.new(AimbotRange/500, 0, 0, 0)
-SliderKnob.BackgroundColor3 = Color3.fromRGB(0,255,0)
-
--- Draggable slider logic
-local dragging = false
-SliderKnob.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
+    local function makeButton(text,colorOn,colorOff,startState,callback)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0,200,0,35)
+        btn.BackgroundColor3 = startState and colorOn or colorOff
+        btn.TextColor3 = Color3.new(1,1,1)
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 18
+        btn.Text = text .. (startState and ": ON" or ": OFF")
+        btn.Parent = frame
+        btn.MouseButton1Click:Connect(function()
+            startState = not startState
+            btn.Text = text .. (startState and ": ON" or ": OFF")
+            btn.BackgroundColor3 = startState and colorOn or colorOff
+            callback(startState)
+        end)
     end
-end)
-SliderKnob.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end)
-RunService.RenderStepped:Connect(function()
-    if dragging then
-        local mouseX = UserInputService:GetMouseLocation().X
-        local barX = SliderBar.AbsolutePosition.X
-        local newX = math.clamp(mouseX - barX, 0, SliderBar.AbsoluteSize.X)
-        SliderKnob.Position = UDim2.new(0, newX, 0, 0)
-        AimbotRange = math.floor(newX / SliderBar.AbsoluteSize.X * 500)
-        SliderLabel.Text = "Aimbot Range: "..AimbotRange
-    end
-end)
 
--- ESP Function
-local function updateESP()
-    if not ESPEnabled then return end
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local char = player.Character or player.CharacterAdded:Wait()
-            if char and not char:FindFirstChild("Highlight") then
-                local highlight = Instance.new("Highlight")
-                highlight.Name = "Highlight"
-                highlight.Adornee = char
-                highlight.FillColor = Color3.fromRGB(0,255,0)
-                highlight.OutlineColor = Color3.fromRGB(0,255,0)
-                highlight.Parent = char
+    local function makeSlider(name,minVal,maxVal,startVal,callback)
+        local sliderFrame = Instance.new("Frame")
+        sliderFrame.Size = UDim2.new(0,200,0,40)
+        sliderFrame.BackgroundTransparency = 1
+        sliderFrame.Parent = frame
+
+        local title = Instance.new("TextLabel")
+        title.Size = UDim2.new(1,0,0.4,0)
+        title.BackgroundTransparency = 1
+        title.Text = name .. ": " .. startVal
+        title.TextColor3 = Color3.new(1,1,1)
+        title.Font = Enum.Font.Gotham
+        title.TextSize = 14
+        title.Parent = sliderFrame
+
+        local bar = Instance.new("Frame")
+        bar.Size = UDim2.new(1,0,0.3,0)
+        bar.Position = UDim2.new(0,0,0.5,0)
+        bar.BackgroundColor3 = Color3.fromRGB(60,60,60)
+        bar.BorderSizePixel = 0
+        bar.Parent = sliderFrame
+
+        local fill = Instance.new("Frame")
+        fill.Size = UDim2.new((startVal - minVal)/(maxVal - minVal),0,1,0)
+        fill.BackgroundColor3 = Color3.fromRGB(0,150,255)
+        fill.BorderSizePixel = 0
+        fill.Parent = bar
+
+        local dragging = false
+        local function update(inputX)
+            local rel = math.clamp((inputX - bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1)
+            local val = math.floor(minVal + (maxVal - minVal)*rel)
+            fill.Size = UDim2.new(rel,0,1,0)
+            title.Text = name .. ": " .. val
+            callback(val)
+        end
+
+        bar.InputBegan:Connect(function(input)
+            if input.UserInputType==Enum.UserInputType.MouseButton1 then
+                dragging=true
+                update(UserInputService:GetMouseLocation().X)
             end
-            local head = char:FindFirstChild("Head")
-            if head and not head:FindFirstChild("Nametag") then
-                local nametag = Instance.new("BillboardGui", head)
-                nametag.Name = "Nametag"
-                nametag.Size = UDim2.new(0,100,0,50)
-                nametag.AlwaysOnTop = true
-                local text = Instance.new("TextLabel", nametag)
-                text.Size = UDim2.new(1,0,1,0)
-                text.BackgroundTransparency = 1
-                text.TextColor3 = Color3.fromRGB(255,255,255)
-                text.TextStrokeTransparency = 0
-                text.Text = player.Name
+        end)
+        bar.InputEnded:Connect(function(input)
+            if input.UserInputType==Enum.UserInputType.MouseButton1 then
+                dragging=false
             end
+        end)
+        UserInputService.InputChanged:Connect(function(input)
+            if dragging and input.UserInputType==Enum.UserInputType.MouseMovement then
+                update(UserInputService:GetMouseLocation().X)
+            end
+        end)
+    end
+
+    -- Buttons
+    makeButton("ESP", Color3.fromRGB(0,180,0), Color3.fromRGB(180,0,0), ESPEnabled, function(s) ESPEnabled=s end)
+    makeButton("AimAssist", Color3.fromRGB(0,180,0), Color3.fromRGB(180,0,0), AimAssistEnabled, function(s) AimAssistEnabled=s end)
+    makeButton("CircleAimbot", Color3.fromRGB(0,180,0), Color3.fromRGB(180,0,0), CircleAimbotEnabled, function(s) CircleAimbotEnabled=s end)
+
+    -- Sliders
+    makeSlider("Aim Sensitivity",1,50,AimSensitivity*100,function(val) AimSensitivity=val/100 end)
+    makeSlider("Circle Radius",50,500,CircleRadius,function(val) CircleRadius=val end)
+    makeSlider("Max Distance",20,1000,MaxDistance,function(val) MaxDistance=val end)
+end
+
+createGUI()
+
+-- ======================================
+-- ESP / Highlight
+-- ======================================
+local function createHighlight(player)
+    if not ESPEnabled or player==LocalPlayer then return end
+    if highlightFolder:FindFirstChild(player.Name) then return end
+    if not player.Character then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = player.Name
+    highlight.Adornee = player.Character
+    highlight.FillColor = Color3.fromRGB(0,255,0)
+    highlight.OutlineColor = Color3.fromRGB(0,255,0)
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Parent = highlightFolder
+
+    local root = player.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = player.Name.."_Nametag"
+    billboard.Adornee = root
+    billboard.Size = UDim2.new(0,150,0,30)
+    billboard.StudsOffset=Vector3.new(0,3,0)
+    billboard.AlwaysOnTop=true
+    billboard.Parent=highlightFolder
+
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Size=UDim2.new(1,0,1,0)
+    textLabel.BackgroundTransparency=1
+    textLabel.TextColor3=Color3.fromRGB(0,255,0)
+    textLabel.Font=Enum.Font.GothamBold
+    textLabel.TextSize=18
+    textLabel.Text=player.Name
+    textLabel.Parent=billboard
+end
+
+local function removeHighlight(player)
+    for _,obj in pairs(highlightFolder:GetChildren()) do
+        if obj.Name==player.Name or obj.Name==player.Name.."_Nametag" then
+            obj:Destroy()
         end
     end
 end
 
--- Aimbot Function
+Players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function() createHighlight(p) end)
+end)
+
+Players.PlayerRemoving:Connect(removeHighlight)
+
+spawn(function()
+    while true do
+        for _,p in pairs(Players:GetPlayers()) do
+            if p~=LocalPlayer and p.Character then createHighlight(p) end
+        end
+        wait(0.5)
+    end
+end)
+
+-- ======================================
+-- Kamera serbest
+-- ======================================
+RunService.RenderStepped:Connect(function()
+    if Camera.CameraType~=Enum.CameraType.Custom then
+        Camera.CameraType=Enum.CameraType.Custom
+    end
+    local plrChar=LocalPlayer.Character
+    if plrChar then
+        local hum=plrChar:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.CameraOffset=Vector3.new(0,0,0)
+            if hum.CameraMode~=Enum.CameraMode.Classic then
+                hum.CameraMode=Enum.CameraMode.Classic
+            end
+        end
+    end
+end)
+
+-- ======================================
+-- AimAssist + Circle Aimbot
+-- ======================================
 local function getClosestPlayer()
-    local closestPlayer = nil
-    local closestDist = AimbotRange
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local pos, onScreen = Camera:WorldToViewportPoint(player.Character.HumanoidRootPart.Position)
-            if onScreen then
-                local dist = (Vector2.new(pos.X,pos.Y)-Vector2.new(Camera.ViewportSize.X/2,Camera.ViewportSize.Y/2)).Magnitude
-                if dist < closestDist then
-                    closestDist = dist
-                    closestPlayer = player
+    local closest=nil
+    local shortestDist=math.huge
+    for _,p in pairs(Players:GetPlayers()) do
+        if p~=LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local root = p.Character.HumanoidRootPart
+            local dist = (root.Position - Camera.CFrame.Position).Magnitude
+            if dist <= MaxDistance then
+                if AimAssistEnabled or CircleAimbotEnabled then
+                    if dist < shortestDist then
+                        closest = p
+                        shortestDist = dist
+                    end
                 end
             end
         end
     end
-    return closestPlayer
+    return closest
 end
 
--- Main Loop
 RunService.RenderStepped:Connect(function()
-    updateESP()
-    if AimbotEnabled then
-        local target = getClosestPlayer()
-        if target and target.Character then
-            local hrp = target.Character:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                local ray = Ray.new(Camera.CFrame.Position,(hrp.Position-Camera.CFrame.Position).Unit*500)
-                local hit = workspace:FindPartOnRay(ray,LocalPlayer.Character)
-                if hit and hit:IsDescendantOf(target.Character) then
-                    print("Firing at "..target.Name)
-                end
+    local target = getClosestPlayer()
+    if target and target.Character then
+        local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            if AimAssistEnabled then
+                local direction = (hrp.Position - Camera.CFrame.Position).Unit
+                Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + direction), AimSensitivity)
             end
         end
     end
 end)
-
--- Toggle keys
-UserInputService.InputBegan:Connect(function(input, gp)
-    if input.KeyCode == Enum.KeyCode.E then
-        ESPEnabled = not ESPEnabled
-    elseif input.KeyCode == Enum.KeyCode.Q then
-        AimbotEnabled = not AimbotEnabled
-    end
-end)
-
--- Unlock First-Person / ShiftLock
-local function unlockCamera()
-    if Camera.CameraType == Enum.CameraType.LockFirstPerson then
-        Camera.CameraType = Enum.CameraType.Custom
-    end
-end
-RunService.RenderStepped:Connect(unlockCamera)
