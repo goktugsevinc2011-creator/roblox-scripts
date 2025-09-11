@@ -1,5 +1,5 @@
 -- ======================================
--- Roblox ESP + Circle Aimbot + AutoClick + Free Camera
+-- Roblox Clean Circle Aimbot + ESP + Auto Fire + GUI
 -- ======================================
 
 local Players = game:GetService("Players")
@@ -9,22 +9,26 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
--- Highlight folder
+-- ========================
+-- Settings
+-- ========================
+local ESPEnabled = true
+local AimbotEnabled = false
+local AutoFireEnabled = true
+local CircleRadius = 150
+local AimSensitivity = 0.3
+local MaxDistance = 300
+
+-- ========================
+-- Highlight Folder
+-- ========================
 local highlightFolder = Instance.new("Folder")
 highlightFolder.Name = "PlayerHighlights"
 highlightFolder.Parent = workspace
 
--- Settings
-local ESPEnabled = true
-local AimbotEnabled = false
-local CircleRadius = 150
-local AimSensitivity = 0.2
-local MaxDistance = 100
-local AutoClickEnabled = true
-
--- ======================================
+-- ========================
 -- GUI
--- ======================================
+-- ========================
 local function createGUI()
     if game:GetService("CoreGui"):FindFirstChild("MainControlGui") then return end
 
@@ -42,33 +46,38 @@ local function createGUI()
     frame.Draggable = true
     frame.Parent = screenGui
 
-    local function makeButton(text,colorOn,colorOff,startState,callback)
+    local function makeButton(text, startState, callback)
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(0,220,0,30)
-        btn.BackgroundColor3 = startState and colorOn or colorOff
+        btn.Position = UDim2.new(0,0,0,0)
+        btn.BackgroundColor3 = startState and Color3.fromRGB(0,180,0) or Color3.fromRGB(180,0,0)
+        btn.Text = text..(startState and ": ON" or ": OFF")
         btn.TextColor3 = Color3.new(1,1,1)
         btn.Font = Enum.Font.GothamBold
         btn.TextSize = 18
-        btn.Text = text .. (startState and ": ON" or ": OFF")
         btn.Parent = frame
+
         btn.MouseButton1Click:Connect(function()
             startState = not startState
-            btn.Text = text .. (startState and ": ON" or ": OFF")
-            btn.BackgroundColor3 = startState and colorOn or colorOff
+            btn.BackgroundColor3 = startState and Color3.fromRGB(0,180,0) or Color3.fromRGB(180,0,0)
+            btn.Text = text..(startState and ": ON" or ": OFF")
             callback(startState)
         end)
+        return btn
     end
 
-    local function makeSlider(name,minVal,maxVal,startVal,callback)
+    local function makeSlider(name, minVal, maxVal, startVal, callback, yOffset)
         local sliderFrame = Instance.new("Frame")
         sliderFrame.Size = UDim2.new(0,220,0,40)
+        sliderFrame.Position = UDim2.new(0,0,0,yOffset)
         sliderFrame.BackgroundTransparency = 1
         sliderFrame.Parent = frame
 
         local title = Instance.new("TextLabel")
         title.Size = UDim2.new(1,0,0.4,0)
+        title.Position = UDim2.new(0,0,0,0)
         title.BackgroundTransparency = 1
-        title.Text = name .. ": " .. startVal
+        title.Text = name..": "..startVal
         title.TextColor3 = Color3.new(1,1,1)
         title.Font = Enum.Font.Gotham
         title.TextSize = 14
@@ -90,9 +99,9 @@ local function createGUI()
         local dragging = false
         local function update(inputX)
             local rel = math.clamp((inputX - bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1)
-            local val = minVal + (maxVal - minVal)*rel
+            local val = math.floor(minVal + (maxVal - minVal)*rel)
             fill.Size = UDim2.new(rel,0,1,0)
-            title.Text = name .. ": " .. math.floor(val)
+            title.Text = name..": "..val
             callback(val)
         end
 
@@ -115,21 +124,22 @@ local function createGUI()
     end
 
     -- Buttons
-    makeButton("ESP", Color3.fromRGB(0,180,0), Color3.fromRGB(180,0,0), ESPEnabled, function(s) ESPEnabled=s end)
-    makeButton("Aimbot", Color3.fromRGB(0,180,0), Color3.fromRGB(180,0,0), AimbotEnabled, function(s) AimbotEnabled=s end)
-    makeButton("Auto Click", Color3.fromRGB(0,180,0), Color3.fromRGB(180,0,0), AutoClickEnabled, function(s) AutoClickEnabled=s end)
+    local yPos = 0
+    makeButton("ESP", ESPEnabled, function(state) ESPEnabled=state end).Position = UDim2.new(0,0,0,yPos); yPos=yPos+35
+    makeButton("Aimbot", AimbotEnabled, function(state) AimbotEnabled=state end).Position = UDim2.new(0,0,0,yPos); yPos=yPos+35
+    makeButton("AutoClick", AutoFireEnabled, function(state) AutoFireEnabled=state end).Position = UDim2.new(0,0,0,yPos); yPos=yPos+35
 
     -- Sliders
-    makeSlider("Circle Radius",50,500,CircleRadius,function(val) CircleRadius=val end)
-    makeSlider("Aim Sensitivity",0.05,1,AimSensitivity,function(val) AimSensitivity=val end)
-    makeSlider("Max Distance",50,1000,MaxDistance,function(val) MaxDistance=val end)
+    makeSlider("Circle Radius",50,500,CircleRadius,function(val) CircleRadius=val end,yPos); yPos=yPos+40
+    makeSlider("Aim Sensitivity",0.05,1,AimSensitivity,function(val) AimSensitivity=val end,yPos); yPos=yPos+40
+    makeSlider("Max Distance",50,1000,MaxDistance,function(val) MaxDistance=val end,yPos)
 end
 
 createGUI()
 
--- ======================================
--- Circle Drawing
--- ======================================
+-- ========================
+-- Draw Circle
+-- ========================
 local circle = Drawing.new("Circle")
 circle.Color = Color3.fromRGB(255,255,255)
 circle.Thickness = 1
@@ -142,9 +152,9 @@ RunService.RenderStepped:Connect(function()
     circle.Radius = CircleRadius
 end)
 
--- ======================================
+-- ========================
 -- ESP
--- ======================================
+-- ========================
 local function createHighlight(player)
     if not ESPEnabled or player==LocalPlayer then return end
     if highlightFolder:FindFirstChild(player.Name) then return end
@@ -170,7 +180,6 @@ end
 Players.PlayerAdded:Connect(function(p)
     p.CharacterAdded:Connect(function() createHighlight(p) end)
 end)
-
 Players.PlayerRemoving:Connect(removeHighlight)
 
 spawn(function()
@@ -182,28 +191,26 @@ spawn(function()
     end
 end)
 
--- ======================================
+-- ========================
 -- Free Camera
--- ======================================
+-- ========================
 RunService.RenderStepped:Connect(function()
     if Camera.CameraType~=Enum.CameraType.Custom then
         Camera.CameraType=Enum.CameraType.Custom
     end
-    local plrChar=LocalPlayer.Character
-    if plrChar then
-        local hum=plrChar:FindFirstChildOfClass("Humanoid")
+    local char=LocalPlayer.Character
+    if char then
+        local hum=char:FindFirstChildOfClass("Humanoid")
         if hum then
             hum.CameraOffset=Vector3.new(0,0,0)
-            if hum.CameraMode~=Enum.CameraMode.Classic then
-                hum.CameraMode=Enum.CameraMode.Classic
-            end
+            hum.CameraMode=Enum.CameraMode.Classic
         end
     end
 end)
 
--- ======================================
--- Aimbot + Auto Click
--- ======================================
+-- ========================
+-- Circle Aimbot + AutoClick
+-- ========================
 local function getClosestPlayerInCircle()
     local closest=nil
     local shortestDist=math.huge
@@ -235,10 +242,14 @@ RunService.RenderStepped:Connect(function()
             Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + direction), AimSensitivity)
 
             -- Auto Click
-            if AutoClickEnabled then
-                UserInputService.InputBegan:Fire({
-                    UserInputType = Enum.UserInputType.MouseButton1
-                })
+            if AutoFireEnabled then
+                mouse1press = true
+                mouse1release = false
+                pcall(function()
+                    local vu = game:GetService("VirtualUser")
+                    vu:Button1Down(Vector2.new(0,0))
+                    vu:Button1Up(Vector2.new(0,0))
+                end)
             end
         end
     end
