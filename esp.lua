@@ -1,4 +1,4 @@
--- Valorant tarzı ESP (kesin çalışan)
+-- Basit ESP (klasik)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -8,7 +8,7 @@ local Camera = workspace.CurrentCamera
 local ESPEnabled = true
 local ESPObjects = {}
 
--- ESP oluşturma fonksiyonu
+-- ESP oluşturma
 local function CreateESP(player)
     if player == LocalPlayer then return end
     local character = player.Character or player.CharacterAdded:Wait()
@@ -16,7 +16,7 @@ local function CreateESP(player)
 
     local billboard = Instance.new("BillboardGui")
     billboard.Adornee = root
-    billboard.Size = UDim2.new(0,100,0,100)
+    billboard.Size = UDim2.new(0,80,0,80)
     billboard.AlwaysOnTop = true
     billboard.StudsOffset = Vector3.new(0,3,0)
     billboard.ResetOnSpawn = false
@@ -26,7 +26,7 @@ local function CreateESP(player)
     frame.Size = UDim2.new(1,0,1,0)
     frame.BackgroundTransparency = 1
     local stroke = Instance.new("UIStroke", frame)
-    stroke.Color = Color3.fromRGB(0,255,0)
+    stroke.Color = Color3.fromRGB(0,255,0) -- Yeşil
     stroke.Thickness = 2
 
     -- İsim label
@@ -39,7 +39,7 @@ local function CreateESP(player)
     nameLabel.Text = player.Name
     nameLabel.Font = Enum.Font.SourceSansBold
 
-    billboard.Parent = player:WaitForChild("PlayerGui") -- Kesin görünürlük için PlayerGui değil, karakter GUI yerine PlayerGui
+    billboard.Parent = LocalPlayer:WaitForChild("PlayerGui")
     ESPObjects[player] = {Gui=billboard, Root=root}
 end
 
@@ -80,18 +80,18 @@ toggleButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- RenderStepped ile güncelleme
+-- ESP güncelleme
 RunService.RenderStepped:Connect(function()
-    if not ESPEnabled then return end
     for _, obj in pairs(ESPObjects) do
         local root = obj.Root
         local gui = obj.Gui
         if root and gui then
             gui.Adornee = root
-            -- Dinamik ölçek
-            local dist = (Camera.CFrame.Position - root.Position).Magnitude
-            local scale = math.clamp(200 / dist, 40, 100)
-            gui.Size = UDim2.new(0, scale, 0, scale)
+            if ESPEnabled then
+                gui.Enabled = true
+            else
+                gui.Enabled = false
+            end
         end
     end
 end)
