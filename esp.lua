@@ -1,4 +1,4 @@
--- Valorant tarzı ESP + Dinamik Ölçek + İsim
+-- Valorant tarzı ESP + Doğru Renk + Dinamik Ölçek + İsim
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -12,23 +12,24 @@ local ESPObjects = {}
 -- ESP oluşturma
 local function CreateESP(player)
     if player == LocalPlayer then return end
-    local character = player.Character
-    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    local character = player.Character or player.CharacterAdded:Wait()
+    local hrp = character:WaitForChild("HumanoidRootPart")
 
     local boxGui = Instance.new("BillboardGui")
-    boxGui.Adornee = character.HumanoidRootPart
+    boxGui.Adornee = hrp
     boxGui.Size = UDim2.new(0,100,0,100)
     boxGui.AlwaysOnTop = true
     boxGui.StudsOffset = Vector3.new(0,3,0)
+    boxGui.ResetOnSpawn = false
 
-    -- Çerçeve (Outline) - Yeşil
+    -- Outline
     local outline = Instance.new("Frame", boxGui)
     outline.Size = UDim2.new(1,0,1,0)
+    outline.BackgroundTransparency = 1
     outline.BorderSizePixel = 2
     outline.BorderColor3 = Color3.fromRGB(0,255,0)
-    outline.BackgroundTransparency = 1
 
-    -- İsim Label
+    -- İsim label
     local nameLabel = Instance.new("TextLabel", boxGui)
     nameLabel.Size = UDim2.new(1,0,0,20)
     nameLabel.Position = UDim2.new(0,0,1,0)
@@ -39,10 +40,10 @@ local function CreateESP(player)
     nameLabel.Font = Enum.Font.SourceSansBold
 
     boxGui.Parent = PlayerGui
-    ESPObjects[player] = {Gui = boxGui, Character = character}
+    ESPObjects[player] = {Gui = boxGui, HRP = hrp, NameLabel = nameLabel}
 end
 
--- Oyuncu çıkınca sil
+-- Oyuncu çıkınca ESP sil
 Players.PlayerRemoving:Connect(function(player)
     if ESPObjects[player] then
         ESPObjects[player].Gui:Destroy()
@@ -61,14 +62,15 @@ Players.PlayerAdded:Connect(function(player)
     end)
 end)
 
--- ScreenGui Toggle
+-- ScreenGui toggle
 local screenGui = Instance.new("ScreenGui", PlayerGui)
+screenGui.ResetOnSpawn = false
 local toggleButton = Instance.new("TextButton", screenGui)
 toggleButton.Size = UDim2.new(0,100,0,50)
 toggleButton.Position = UDim2.new(0,10,0,10)
-toggleButton.Text = "ESP Kapat"
 toggleButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
 toggleButton.TextColor3 = Color3.fromRGB(0,255,0)
+toggleButton.Text = "ESP Kapat"
 
 toggleButton.MouseButton1Click:Connect(function()
     ESPEnabled = not ESPEnabled
@@ -78,19 +80,28 @@ toggleButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- ESP güncelleme ve dinamik ölçek
+-- RenderStepped ile ESP güncelleme
 RunService.RenderStepped:Connect(function()
-    if not ESPEnabled then return end
     for _, obj in pairs(ESPObjects) do
-        local char = obj.Character
+        local hrp = obj.HRP
         local gui = obj.Gui
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            gui.Adornee = char.HumanoidRootPart
+        local nameLabel = obj.NameLabel
 
-            -- Kamera uzaklığına göre ölçek
-            local distance = (Camera.CFrame.Position - char.HumanoidRootPart.Position).Magnitude
-            local scale = math.clamp(1000 / distance, 50, 150) -- Min 50, max 150 piksel
+        if hrp and gui then
+            gui.Adornee = hrp
+            if ESPEnabled then
+                gui.Enabled = true
+            else
+                gui.Enabled = false
+            end
+
+            -- Dinamik ölçek (uzaklıkla küçülüyor, yakınken sabit)
+            local dist = (Camera.CFrame.Position - hrp.Position).Magnitude
+            local scale = math.clamp(200 / dist, 40, 100) -- Min 40, Max 100
             gui.Size = UDim2.new(0, scale, 0, scale)
+
+            -- İsim label her zaman görünür ve çerçeveye göre konumlanır
+            nameLabel.Position = UDim2.new(0,0,1,0)
         end
     end
 end)
