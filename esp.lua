@@ -1,191 +1,138 @@
-loadstring([[
+-- Roblox Player ESP + Aimbot + Third-Person Camera GUI
+-- Full Combined Script
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
 
--- ===== SETTINGS =====
-local ScriptEnabled = true
-local AimSensitivity, CircleRadius, MaxDistance = 0.1,150,100
-local CamDistance, CamHeight = 8, 2  -- 3rd person distance & height
+-- GUI Setup
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+ScreenGui.ResetOnSpawn = false
 
--- ===== HIGHLIGHT FOLDER =====
-local HFolder = Instance.new("Folder",workspace)
-HFolder.Name="Highlights"
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 200, 0, 200)
+Frame.Position = UDim2.new(0.5, -100, 0.5, -100)
+Frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Frame.BackgroundTransparency = 0.5
+Frame.Active = true
+Frame.Draggable = true
 
--- ===== GUI =====
-local function createGUI()
-    if game:GetService("CoreGui"):FindFirstChild("GUI") then return end
-    local screenGui = Instance.new("ScreenGui",game:GetService("CoreGui"))
-    screenGui.Name="GUI"
+local Slider = Instance.new("TextButton", Frame)
+Slider.Size = UDim2.new(1, -20, 0, 30)
+Slider.Position = UDim2.new(0, 10, 0, 10)
+Slider.Text = "Adjust Aimbot Range"
+Slider.BackgroundColor3 = Color3.fromRGB(255,255,255)
+Slider.TextColor3 = Color3.fromRGB(0,0,0)
 
-    local frame = Instance.new("Frame",screenGui)
-    frame.Size = UDim2.new(0,220,0,220)
-    frame.Position = UDim2.new(0,50,0,50)
-    frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
-    frame.Active = true frame.Draggable = true
+local AimbotRange = 50
 
-    -- Tek ON/OFF Buton
-    local toggleBtn = Instance.new("TextButton", frame)
-    toggleBtn.Size = UDim2.new(0,200,0,30)
-    toggleBtn.Position = UDim2.new(0,10,0,10)
-    toggleBtn.Text = "SCRIPT: ON"
-    toggleBtn.MouseButton1Click:Connect(function()
-        ScriptEnabled = not ScriptEnabled
-        toggleBtn.Text = "SCRIPT: "..(ScriptEnabled and "ON" or "OFF")
-    end)
-
-    -- Sliderlar
-    local function makeSlider(txt,min,max,init,callback,posY)
-        local sFrame=Instance.new("Frame",frame)
-        sFrame.Size=UDim2.new(0,200,0,30)
-        sFrame.Position = UDim2.new(0,10,0,posY)
-        local lbl=Instance.new("TextLabel",sFrame)
-        lbl.Size=UDim2.new(1,0,0.5,0)
-        lbl.BackgroundTransparency=1
-        lbl.Text=txt..": "..init
-        local bar=Instance.new("Frame",sFrame)
-        bar.Position=UDim2.new(0,0,0.5,0)
-        bar.Size=UDim2.new(1,0,0.5,0)
-        bar.BackgroundColor3=Color3.fromRGB(60,60,60)
-        local fill=Instance.new("Frame",bar)
-        fill.Size=UDim2.new((init-min)/(max-min),0,1,0)
-        fill.BackgroundColor3=Color3.fromRGB(0,150,255)
-        local dragging=false
-        bar.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=true end end)
-        bar.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end end)
-        UserInputService.InputChanged:Connect(function(i)
-            if dragging and i.UserInputType==Enum.UserInputType.MouseMovement then
-                local rel=(i.Position.X-bar.AbsolutePosition.X)/bar.AbsoluteSize.X
-                rel=math.clamp(rel,0,1)
-                fill.Size=UDim2.new(rel,0,1,0)
-                local val=math.floor(min+(max-min)*rel)
-                lbl.Text=txt..": "..val
-                callback(val)
-            end
-        end)
-    end
-    makeSlider("Sensitivity",1,50,AimSensitivity*100,function(v) AimSensitivity=v/100 end,50)
-    makeSlider("Radius",50,500,CircleRadius,function(v) CircleRadius=v end,90)
-    makeSlider("MaxDist",20,1000,MaxDistance,function(v) MaxDistance=v end,130)
-end
-createGUI()
-
--- ===== ESP =====
-local function createHighlight(p)
-    if not ScriptEnabled or p==LocalPlayer then return end
-    if HFolder:FindFirstChild(p.Name) then return end
-    if not p.Character then return end
-    local h=Instance.new("Highlight",HFolder)
-    h.Name=p.Name
-    h.Adornee=p.Character
-    h.FillColor=Color3.fromRGB(0,255,0)
-    h.OutlineColor=Color3.fromRGB(0,255,0)
-    h.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
-    local root=p.Character:FindFirstChild("HumanoidRootPart")
-    if root then
-        local tag=Instance.new("BillboardGui",HFolder)
-        tag.Name=p.Name.."_Tag"
-        tag.Adornee=root
-        tag.Size=UDim2.new(0,150,0,30)
-        tag.StudsOffset=Vector3.new(0,3,0)
-        tag.AlwaysOnTop=true
-        local lbl=Instance.new("TextLabel",tag)
-        lbl.Size=UDim2.new(1,0,1,0)
-        lbl.BackgroundTransparency=1
-        lbl.TextColor3=Color3.fromRGB(0,255,0)
-        lbl.Font=Enum.Font.GothamBold
-        lbl.TextSize=18
-        lbl.Text=p.Name
-    end
-end
-
-local function removeHighlight(p)
-    for _,o in pairs(HFolder:GetChildren()) do
-        if o.Name==p.Name or o.Name==p.Name.."_Tag" then o:Destroy() end
-    end
-end
-
-Players.PlayerAdded:Connect(function(p) p.CharacterAdded:Connect(function() createHighlight(p) end) end)
-Players.PlayerRemoving:Connect(removeHighlight)
-
-spawn(function()
-    while true do
-        if ScriptEnabled then
-            for _,p in pairs(Players:GetPlayers()) do
-                if p~=LocalPlayer and p.Character then
-                    if not HFolder:FindFirstChild(p.Name) then createHighlight(p) end
-                end
-            end
-        end
-        wait(0.5)
-    end
+Slider.MouseButton1Down:Connect(function()
+    local mouse = UserInputService:GetMouseLocation()
+    AimbotRange = math.clamp(AimbotRange + 10, 10, 500)
+    Slider.Text = "Aimbot Range: "..AimbotRange
 end)
 
--- ===== 3rd PERSON CAMERA (Character Yönünü Etkilemeden) =====
-local camYaw, camPitch = 0,0
-UserInputService.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        camYaw = camYaw + input.Delta.X * 0.3
-        camPitch = math.clamp(camPitch - input.Delta.Y * 0.3, -50, 50)
-    end
-end)
+-- ESP Function
+local function createHighlight(character)
+    if not character or character:FindFirstChild("Highlight") then return end
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "Highlight"
+    highlight.Adornee = character
+    highlight.FillColor = Color3.fromRGB(0, 255, 0)
+    highlight.OutlineColor = Color3.fromRGB(0, 255, 0)
+    highlight.Parent = character
+end
 
+-- Nametag
+local function updateNametag(player)
+    if not player.Character then return end
+    local head = player.Character:FindFirstChild("Head")
+    if not head then return end
+    if not head:FindFirstChild("Nametag") then
+        local nametag = Instance.new("BillboardGui", head)
+        nametag.Name = "Nametag"
+        nametag.Size = UDim2.new(0, 100, 0, 50)
+        nametag.AlwaysOnTop = true
+        
+        local text = Instance.new("TextLabel", nametag)
+        text.Size = UDim2.new(1,0,1,0)
+        text.BackgroundTransparency = 1
+        text.TextColor3 = Color3.fromRGB(255,255,255)
+        text.TextStrokeTransparency = 0
+        text.Text = player.Name
+    end
+end
+
+-- White Circle on Screen
+local Circle = Drawing.new("Circle")
+Circle.Radius = 100
+Circle.Color = Color3.fromRGB(255,255,255)
+Circle.Thickness = 2
+Circle.Visible = true
+
+-- Main Loop
 RunService.RenderStepped:Connect(function()
-    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
-    local root = LocalPlayer.Character.HumanoidRootPart
-    local camPos = root.Position - (root.CFrame.LookVector * CamDistance) + Vector3.new(0,CamHeight,0)
-    local offset = CFrame.Angles(math.rad(camPitch), math.rad(camYaw),0)
-    Camera.CFrame = CFrame.new(camPos) * offset + root.Position
-    Camera.CameraType = Enum.CameraType.Custom
+    -- Update ESP and Nametags
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            createHighlight(player.Character or player.CharacterAdded:Wait())
+            updateNametag(player)
+        end
+    end
+    -- Update Circle
+    Circle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
 end)
 
--- ===== AimAssist + CircleAimbot =====
-local mouse=LocalPlayer:GetMouse()
-local circle = Drawing.new("Circle")
-circle.Radius = CircleRadius
-circle.Color = Color3.fromRGB(255,255,255)
-circle.Thickness = 2
-circle.Filled = false
-
-local function getClosest()
-    if not ScriptEnabled then return nil end
-    local closest=nil
-    local shortestDist=math.huge
-    for _,p in pairs(Players:GetPlayers()) do
-        if p~=LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            local root = p.Character.HumanoidRootPart
-            local distance = (root.Position - Camera.CFrame.Position).Magnitude
-            if distance <= MaxDistance then
-                local sp, onScreen = Camera:WorldToViewportPoint(root.Position)
-                if onScreen then
-                    local md = (Vector2.new(sp.X, sp.Y) - Vector2.new(mouse.X, mouse.Y)).Magnitude
-                    if md < shortestDist and md <= circle.Radius then
-                        shortestDist = md
-                        closest = p
-                    end
+-- Aimbot + Fire
+local function getClosestPlayer()
+    local closestPlayer = nil
+    local closestDistance = AimbotRange
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local pos, onScreen = Camera:WorldToViewportPoint(player.Character.HumanoidRootPart.Position)
+            if onScreen then
+                local dist = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+                if dist < closestDistance then
+                    closestDistance = dist
+                    closestPlayer = player
                 end
             end
         end
     end
-    return closest
+    return closestPlayer
 end
 
 RunService.RenderStepped:Connect(function()
-    circle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-    circle.Radius = CircleRadius
-    if not ScriptEnabled then return end
-    local t = getClosest()
-    if not t or not t.Character or not t.Character:FindFirstChild("HumanoidRootPart") then return end
-    local r = t.Character.HumanoidRootPart
-    local sp,onS = Camera:WorldToViewportPoint(r.Position)
-    if not onS then return end
-    local dir = (r.Position-Camera.CFrame.Position).Unit
-    local newCF = CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position+dir)
-    Camera.CFrame = Camera.CFrame:Lerp(newCF, AimSensitivity)
-    VirtualInputManager:SendMouseButtonEvent(0,0,0,true,game,0)
-    VirtualInputManager:SendMouseButtonEvent(0,0,0,false,game,0)
+    local target = getClosestPlayer()
+    if target and target.Character then
+        local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local ray = Ray.new(Camera.CFrame.Position, (hrp.Position - Camera.CFrame.Position).Unit * 500)
+            local hit = workspace:FindPartOnRay(ray, LocalPlayer.Character)
+            if hit and hit:IsDescendantOf(target.Character) then
+                print("Firing at "..target.Name)
+            end
+        end
+    end
 end)
-]])()
+
+-- Force Third-Person View like Valorant Hacks
+local function forceThirdPerson()
+    if not Camera then return end
+    Camera.CameraType = Enum.CameraType.Scriptable
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = character.HumanoidRootPart
+    Camera.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 5, 15), hrp.Position)
+end
+
+RunService.RenderStepped:Connect(forceThirdPerson)
+
+-- Optional: Return to default camera
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.R then
+        Camera.CameraType = Enum.CameraType.Custom
+    end
+end)
