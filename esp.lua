@@ -1,4 +1,4 @@
--- Valorant tarzı ESP + Doğru Renk + Dinamik Ölçek + İsim
+-- Valorant tarzı ESP + İsim + Yeşil Outline
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -22,12 +22,14 @@ local function CreateESP(player)
     boxGui.StudsOffset = Vector3.new(0,3,0)
     boxGui.ResetOnSpawn = false
 
-    -- Outline
-    local outline = Instance.new("Frame", boxGui)
-    outline.Size = UDim2.new(1,0,1,0)
-    outline.BackgroundTransparency = 1
-    outline.BorderSizePixel = 2
-    outline.BorderColor3 = Color3.fromRGB(0,255,0)
+    -- Frame + UIStroke ile outline
+    local frame = Instance.new("Frame", boxGui)
+    frame.Size = UDim2.new(1,0,1,0)
+    frame.BackgroundTransparency = 1
+
+    local stroke = Instance.new("UIStroke", frame)
+    stroke.Color = Color3.fromRGB(0,255,0)
+    stroke.Thickness = 2
 
     -- İsim label
     local nameLabel = Instance.new("TextLabel", boxGui)
@@ -89,18 +91,14 @@ RunService.RenderStepped:Connect(function()
 
         if hrp and gui then
             gui.Adornee = hrp
-            if ESPEnabled then
-                gui.Enabled = true
-            else
-                gui.Enabled = false
-            end
+            gui.Enabled = ESPEnabled
 
-            -- Dinamik ölçek (uzaklıkla küçülüyor, yakınken sabit)
+            -- Dinamik ölçek
             local dist = (Camera.CFrame.Position - hrp.Position).Magnitude
-            local scale = math.clamp(200 / dist, 40, 100) -- Min 40, Max 100
+            local scale = math.clamp(200 / dist, 40, 100)
             gui.Size = UDim2.new(0, scale, 0, scale)
 
-            -- İsim label her zaman görünür ve çerçeveye göre konumlanır
+            -- İsim label her zaman çerçeve altında
             nameLabel.Position = UDim2.new(0,0,1,0)
         end
     end
