@@ -1,4 +1,4 @@
--- Valorant tarzı ESP + Yeşil Outline + İsim
+-- Valorant tarzı ESP + Dinamik Ölçek + İsim
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -17,7 +17,7 @@ local function CreateESP(player)
 
     local boxGui = Instance.new("BillboardGui")
     boxGui.Adornee = character.HumanoidRootPart
-    boxGui.Size = UDim2.new(0,80,0,80)
+    boxGui.Size = UDim2.new(0,100,0,100)
     boxGui.AlwaysOnTop = true
     boxGui.StudsOffset = Vector3.new(0,3,0)
 
@@ -25,7 +25,7 @@ local function CreateESP(player)
     local outline = Instance.new("Frame", boxGui)
     outline.Size = UDim2.new(1,0,1,0)
     outline.BorderSizePixel = 2
-    outline.BorderColor3 = Color3.fromRGB(0,255,0) -- Kesin yeşil
+    outline.BorderColor3 = Color3.fromRGB(0,255,0)
     outline.BackgroundTransparency = 1
 
     -- İsim Label
@@ -33,19 +33,19 @@ local function CreateESP(player)
     nameLabel.Size = UDim2.new(1,0,0,20)
     nameLabel.Position = UDim2.new(0,0,1,0)
     nameLabel.BackgroundTransparency = 1
-    nameLabel.TextColor3 = Color3.fromRGB(0,255,0) -- Yeşil isim
+    nameLabel.TextColor3 = Color3.fromRGB(0,255,0)
     nameLabel.TextScaled = true
     nameLabel.Text = player.Name
     nameLabel.Font = Enum.Font.SourceSansBold
 
     boxGui.Parent = PlayerGui
-    ESPObjects[player] = boxGui
+    ESPObjects[player] = {Gui = boxGui, Character = character}
 end
 
 -- Oyuncu çıkınca sil
 Players.PlayerRemoving:Connect(function(player)
     if ESPObjects[player] then
-        ESPObjects[player]:Destroy()
+        ESPObjects[player].Gui:Destroy()
         ESPObjects[player] = nil
     end
 end)
@@ -73,18 +73,24 @@ toggleButton.TextColor3 = Color3.fromRGB(0,255,0)
 toggleButton.MouseButton1Click:Connect(function()
     ESPEnabled = not ESPEnabled
     toggleButton.Text = ESPEnabled and "ESP Kapat" or "ESP Aç"
-    for _, box in pairs(ESPObjects) do
-        box.Enabled = ESPEnabled
+    for _, obj in pairs(ESPObjects) do
+        obj.Gui.Enabled = ESPEnabled
     end
 end)
 
--- ESP güncelleme
+-- ESP güncelleme ve dinamik ölçek
 RunService.RenderStepped:Connect(function()
     if not ESPEnabled then return end
-    for player, box in pairs(ESPObjects) do
-        local character = player.Character
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            box.Adornee = character.HumanoidRootPart
+    for _, obj in pairs(ESPObjects) do
+        local char = obj.Character
+        local gui = obj.Gui
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            gui.Adornee = char.HumanoidRootPart
+
+            -- Kamera uzaklığına göre ölçek
+            local distance = (Camera.CFrame.Position - char.HumanoidRootPart.Position).Magnitude
+            local scale = math.clamp(1000 / distance, 50, 150) -- Min 50, max 150 piksel
+            gui.Size = UDim2.new(0, scale, 0, scale)
         end
     end
 end)
