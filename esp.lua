@@ -1,5 +1,5 @@
 -- ======================================
--- Roblox Clean Circle Aimbot + ESP + Auto Fire + GUI
+-- Roblox ESP + Circle Aimbot + Auto Fire + GUI
 -- ======================================
 
 local Players = game:GetService("Players")
@@ -7,7 +7,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-local Mouse = LocalPlayer:GetMouse()
+local VirtualUser = game:GetService("VirtualUser")
 
 -- ========================
 -- Settings
@@ -31,13 +31,12 @@ highlightFolder.Parent = workspace
 -- ========================
 local function createGUI()
     if game:GetService("CoreGui"):FindFirstChild("MainControlGui") then return end
-
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "MainControlGui"
     screenGui.Parent = game:GetService("CoreGui")
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0,250,0,220)
+    frame.Size = UDim2.new(0,250,0,200)
     frame.Position = UDim2.new(0,50,0,50)
     frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
     frame.BackgroundTransparency = 0.3
@@ -46,30 +45,28 @@ local function createGUI()
     frame.Draggable = true
     frame.Parent = screenGui
 
-    local function makeButton(text, startState, callback)
+    local function makeButton(name,startState,callback,yPos)
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(0,220,0,30)
-        btn.Position = UDim2.new(0,0,0,0)
+        btn.Position = UDim2.new(0,0,0,yPos)
         btn.BackgroundColor3 = startState and Color3.fromRGB(0,180,0) or Color3.fromRGB(180,0,0)
-        btn.Text = text..(startState and ": ON" or ": OFF")
+        btn.Text = name..(startState and ": ON" or ": OFF")
         btn.TextColor3 = Color3.new(1,1,1)
         btn.Font = Enum.Font.GothamBold
         btn.TextSize = 18
         btn.Parent = frame
-
         btn.MouseButton1Click:Connect(function()
             startState = not startState
             btn.BackgroundColor3 = startState and Color3.fromRGB(0,180,0) or Color3.fromRGB(180,0,0)
-            btn.Text = text..(startState and ": ON" or ": OFF")
+            btn.Text = name..(startState and ": ON" or ": OFF")
             callback(startState)
         end)
-        return btn
     end
 
-    local function makeSlider(name, minVal, maxVal, startVal, callback, yOffset)
+    local function makeSlider(name,minVal,maxVal,startVal,callback,yPos)
         local sliderFrame = Instance.new("Frame")
         sliderFrame.Size = UDim2.new(0,220,0,40)
-        sliderFrame.Position = UDim2.new(0,0,0,yOffset)
+        sliderFrame.Position = UDim2.new(0,0,0,yPos)
         sliderFrame.BackgroundTransparency = 1
         sliderFrame.Parent = frame
 
@@ -99,9 +96,9 @@ local function createGUI()
         local dragging = false
         local function update(inputX)
             local rel = math.clamp((inputX - bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1)
-            local val = math.floor(minVal + (maxVal - minVal)*rel)
+            local val = minVal + (maxVal - minVal)*rel
             fill.Size = UDim2.new(rel,0,1,0)
-            title.Text = name..": "..val
+            title.Text = name..": "..math.floor(val)
             callback(val)
         end
 
@@ -123,13 +120,11 @@ local function createGUI()
         end)
     end
 
-    -- Buttons
+    -- Buttons and Sliders
     local yPos = 0
-    makeButton("ESP", ESPEnabled, function(state) ESPEnabled=state end).Position = UDim2.new(0,0,0,yPos); yPos=yPos+35
-    makeButton("Aimbot", AimbotEnabled, function(state) AimbotEnabled=state end).Position = UDim2.new(0,0,0,yPos); yPos=yPos+35
-    makeButton("AutoClick", AutoFireEnabled, function(state) AutoFireEnabled=state end).Position = UDim2.new(0,0,0,yPos); yPos=yPos+35
-
-    -- Sliders
+    makeButton("ESP", ESPEnabled,function(state) ESPEnabled=state end,yPos); yPos=yPos+35
+    makeButton("Aimbot", AimbotEnabled,function(state) AimbotEnabled=state end,yPos); yPos=yPos+35
+    makeButton("AutoFire", AutoFireEnabled,function(state) AutoFireEnabled=state end,yPos); yPos=yPos+35
     makeSlider("Circle Radius",50,500,CircleRadius,function(val) CircleRadius=val end,yPos); yPos=yPos+40
     makeSlider("Aim Sensitivity",0.05,1,AimSensitivity,function(val) AimSensitivity=val end,yPos); yPos=yPos+40
     makeSlider("Max Distance",50,1000,MaxDistance,function(val) MaxDistance=val end,yPos)
@@ -171,9 +166,7 @@ end
 
 local function removeHighlight(player)
     for _,obj in pairs(highlightFolder:GetChildren()) do
-        if obj.Name==player.Name then
-            obj:Destroy()
-        end
+        if obj.Name==player.Name then obj:Destroy() end
     end
 end
 
@@ -209,7 +202,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ========================
--- Circle Aimbot + AutoClick
+-- Circle Aimbot + AutoFire
 -- ========================
 local function getClosestPlayerInCircle()
     local closest=nil
@@ -237,18 +230,15 @@ RunService.RenderStepped:Connect(function()
     if target and target.Character then
         local hrp = target.Character:FindFirstChild("HumanoidRootPart")
         if hrp then
-            -- Aim towards target
+            -- Smooth Aim
             local direction = (hrp.Position - Camera.CFrame.Position).Unit
             Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + direction), AimSensitivity)
 
-            -- Auto Click
+            -- Auto Fire
             if AutoFireEnabled then
-                mouse1press = true
-                mouse1release = false
                 pcall(function()
-                    local vu = game:GetService("VirtualUser")
-                    vu:Button1Down(Vector2.new(0,0))
-                    vu:Button1Up(Vector2.new(0,0))
+                    VirtualUser:Button1Down(Vector2.new(0,0))
+                    VirtualUser:Button1Up(Vector2.new(0,0))
                 end)
             end
         end
