@@ -1,38 +1,36 @@
--- Valorant tarzı ESP + İsim + Yeşil Outline
+-- Valorant tarzı ESP (kesin çalışan)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
 
 local ESPEnabled = true
 local ESPObjects = {}
 
--- ESP oluşturma
+-- ESP oluşturma fonksiyonu
 local function CreateESP(player)
     if player == LocalPlayer then return end
     local character = player.Character or player.CharacterAdded:Wait()
-    local hrp = character:WaitForChild("HumanoidRootPart")
+    local root = character:WaitForChild("HumanoidRootPart")
 
-    local boxGui = Instance.new("BillboardGui")
-    boxGui.Adornee = hrp
-    boxGui.Size = UDim2.new(0,100,0,100)
-    boxGui.AlwaysOnTop = true
-    boxGui.StudsOffset = Vector3.new(0,3,0)
-    boxGui.ResetOnSpawn = false
+    local billboard = Instance.new("BillboardGui")
+    billboard.Adornee = root
+    billboard.Size = UDim2.new(0,100,0,100)
+    billboard.AlwaysOnTop = true
+    billboard.StudsOffset = Vector3.new(0,3,0)
+    billboard.ResetOnSpawn = false
 
-    -- Frame + UIStroke ile outline
-    local frame = Instance.new("Frame", boxGui)
+    -- Outline Frame
+    local frame = Instance.new("Frame", billboard)
     frame.Size = UDim2.new(1,0,1,0)
     frame.BackgroundTransparency = 1
-
     local stroke = Instance.new("UIStroke", frame)
     stroke.Color = Color3.fromRGB(0,255,0)
     stroke.Thickness = 2
 
     -- İsim label
-    local nameLabel = Instance.new("TextLabel", boxGui)
+    local nameLabel = Instance.new("TextLabel", billboard)
     nameLabel.Size = UDim2.new(1,0,0,20)
     nameLabel.Position = UDim2.new(0,0,1,0)
     nameLabel.BackgroundTransparency = 1
@@ -41,8 +39,8 @@ local function CreateESP(player)
     nameLabel.Text = player.Name
     nameLabel.Font = Enum.Font.SourceSansBold
 
-    boxGui.Parent = PlayerGui
-    ESPObjects[player] = {Gui = boxGui, HRP = hrp, NameLabel = nameLabel}
+    billboard.Parent = player:WaitForChild("PlayerGui") -- Kesin görünürlük için PlayerGui değil, karakter GUI yerine PlayerGui
+    ESPObjects[player] = {Gui=billboard, Root=root}
 end
 
 -- Oyuncu çıkınca ESP sil
@@ -54,7 +52,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 -- Mevcut oyuncular için ESP
-for _,player in pairs(Players:GetPlayers()) do
+for _, player in pairs(Players:GetPlayers()) do
     CreateESP(player)
 end
 
@@ -64,8 +62,8 @@ Players.PlayerAdded:Connect(function(player)
     end)
 end)
 
--- ScreenGui toggle
-local screenGui = Instance.new("ScreenGui", PlayerGui)
+-- ScreenGui toggle butonu
+local screenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
 screenGui.ResetOnSpawn = false
 local toggleButton = Instance.new("TextButton", screenGui)
 toggleButton.Size = UDim2.new(0,100,0,50)
@@ -82,24 +80,18 @@ toggleButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- RenderStepped ile ESP güncelleme
+-- RenderStepped ile güncelleme
 RunService.RenderStepped:Connect(function()
+    if not ESPEnabled then return end
     for _, obj in pairs(ESPObjects) do
-        local hrp = obj.HRP
+        local root = obj.Root
         local gui = obj.Gui
-        local nameLabel = obj.NameLabel
-
-        if hrp and gui then
-            gui.Adornee = hrp
-            gui.Enabled = ESPEnabled
-
+        if root and gui then
+            gui.Adornee = root
             -- Dinamik ölçek
-            local dist = (Camera.CFrame.Position - hrp.Position).Magnitude
+            local dist = (Camera.CFrame.Position - root.Position).Magnitude
             local scale = math.clamp(200 / dist, 40, 100)
             gui.Size = UDim2.new(0, scale, 0, scale)
-
-            -- İsim label her zaman çerçeve altında
-            nameLabel.Position = UDim2.new(0,0,1,0)
         end
     end
 end)
