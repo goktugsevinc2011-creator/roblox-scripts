@@ -1,5 +1,5 @@
 -- Roblox Player ESP + Aimbot + GUI + First-Person Unlock
--- Full Combined Script
+-- Full Combined Script without On-Screen Circle
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -64,14 +64,6 @@ local function updateNametag(player)
     end
 end
 
--- White Thin Outline Circle on Screen
-local Circle = Drawing.new("Circle")
-Circle.Radius = 100
-Circle.Color = Color3.fromRGB(255,255,255)
-Circle.Thickness = 1       -- thin outline
-Circle.Filled = false       -- empty center
-Circle.Visible = true
-
 -- Main Loop
 RunService.RenderStepped:Connect(function()
     -- Update ESP and Nametags
@@ -81,8 +73,6 @@ RunService.RenderStepped:Connect(function()
             updateNametag(player)
         end
     end
-    -- Update Circle Position
-    Circle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
 end)
 
 -- Aimbot + Fire
