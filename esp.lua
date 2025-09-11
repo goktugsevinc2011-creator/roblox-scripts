@@ -1,5 +1,5 @@
--- Roblox Player ESP + Aimbot + Third-Person Camera GUI
--- Full Combined Script with Thin Outline Circle
+-- Roblox Player ESP + Aimbot + GUI + First-Person Unlock
+-- Full Combined Script
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -118,19 +118,16 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Force Third-Person View like Valorant Hacks
-local function forceThirdPerson()
-    if not Camera then return end
-    Camera.CameraType = Enum.CameraType.Scriptable
-    local character = LocalPlayer.Character
-    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = character.HumanoidRootPart
-    Camera.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 5, 15), hrp.Position)
+-- Unlock First-Person / ShiftLock
+local function unlockCamera()
+    if Camera.CameraType == Enum.CameraType.LockFirstPerson then
+        Camera.CameraType = Enum.CameraType.Custom
+    end
 end
 
-RunService.RenderStepped:Connect(forceThirdPerson)
+RunService.RenderStepped:Connect(unlockCamera)
 
--- Optional: Return to default camera
+-- Optional: manually reset camera with R
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if input.KeyCode == Enum.KeyCode.R then
         Camera.CameraType = Enum.CameraType.Custom
