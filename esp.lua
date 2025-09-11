@@ -157,7 +157,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ======================================
--- 4) Test Amaçlı Aim Assist
+-- 4) Yumuşak Aim Assist (Q ile aktif)
 -- ======================================
 local mouse = localPlayer:GetMouse()
 local aimKey = Enum.KeyCode.Q
@@ -199,6 +199,9 @@ RunService.RenderStepped:Connect(function()
 	if closestPlayer and closestPlayer.Character and closestPlayer.Character:FindFirstChild("HumanoidRootPart") then
 		local targetPos = closestPlayer.Character.HumanoidRootPart.Position
 		local dir = (targetPos - camera.CFrame.Position).Unit
-		camera.CFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + dir)
+		local newCFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + dir)
+
+		-- Yumuşak kayma (0.1 hızını artırırsan daha hızlı nişan alır)
+		camera.CFrame = camera.CFrame:Lerp(newCFrame, 0.1)
 	end
 end)
