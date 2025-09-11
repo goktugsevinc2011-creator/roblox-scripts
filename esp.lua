@@ -1,97 +1,86 @@
--- Basit ESP (klasik)
-
+-- Services
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
-local Camera = workspace.CurrentCamera
 
-local ESPEnabled = true
-local ESPObjects = {}
+local localPlayer = Players.LocalPlayer
+local highlightFolder = Instance.new("Folder")
+highlightFolder.Name = "PlayerHighlights"
+highlightFolder.Parent = workspace
 
--- ESP oluşturma
-local function CreateESP(player)
-    if player == LocalPlayer then return end
-    local character = player.Character or player.CharacterAdded:Wait()
-    local root = character:WaitForChild("HumanoidRootPart")
+local function createHighlight(player)
+	if player == localPlayer then return end
+	if not player.Character then return end
+	if highlightFolder:FindFirstChild(player.Name) then return end
 
-    local billboard = Instance.new("BillboardGui")
-    billboard.Adornee = root
-    billboard.Size = UDim2.new(0,80,0,80)
-    billboard.AlwaysOnTop = true
-    billboard.StudsOffset = Vector3.new(0,3,0)
-    billboard.ResetOnSpawn = false
+	-- Highlight oluştur
+	local highlight = Instance.new("Highlight")
+	highlight.Name = player.Name
+	highlight.Adornee = player.Character
+	highlight.FillColor = Color3.fromRGB(0, 255, 0)
+	highlight.OutlineColor = Color3.fromRGB(0, 255, 0)
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.Parent = highlightFolder
 
-    -- Outline Frame
-    local frame = Instance.new("Frame", billboard)
-    frame.Size = UDim2.new(1,0,1,0)
-    frame.BackgroundTransparency = 1
-    local stroke = Instance.new("UIStroke", frame)
-    stroke.Color = Color3.fromRGB(0,255,0) -- Yeşil
-    stroke.Thickness = 2
+	-- BillboardGui oluştur (nametag)
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "NameTag"
+	billboard.Adornee = player.Character:FindFirstChild("HumanoidRootPart") or player.Character:FindFirstChildWhichIsA("BasePart")
+	billboard.Size = UDim2.new(0, 100, 0, 50)
+	billboard.StudsOffset = Vector3.new(0, 3, 0)
+	billboard.AlwaysOnTop = true
+	billboard.Parent = highlightFolder
 
-    -- İsim label
-    local nameLabel = Instance.new("TextLabel", billboard)
-    nameLabel.Size = UDim2.new(1,0,0,20)
-    nameLabel.Position = UDim2.new(0,0,1,0)
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.TextColor3 = Color3.fromRGB(0,255,0)
-    nameLabel.TextScaled = true
-    nameLabel.Text = player.Name
-    nameLabel.Font = Enum.Font.SourceSansBold
-
-    billboard.Parent = LocalPlayer:WaitForChild("PlayerGui")
-    ESPObjects[player] = {Gui=billboard, Root=root}
+	local textLabel = Instance.new("TextLabel")
+	textLabel.Size = UDim2.new(1, 0, 1, 0)
+	textLabel.BackgroundTransparency = 1
+	textLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+	textLabel.TextScaled = true
+	textLabel.Text = player.Name
+	textLabel.Font = Enum.Font.SourceSansBold
+	textLabel.Parent = billboard
 end
 
--- Oyuncu çıkınca ESP sil
-Players.PlayerRemoving:Connect(function(player)
-    if ESPObjects[player] then
-        ESPObjects[player].Gui:Destroy()
-        ESPObjects[player] = nil
-    end
-end)
-
--- Mevcut oyuncular için ESP
-for _, player in pairs(Players:GetPlayers()) do
-    CreateESP(player)
+local function removeHighlight(player)
+	local existing = highlightFolder:FindFirstChild(player.Name)
+	if existing then
+		existing:Destroy()
+	end
+	local billboard = highlightFolder:FindFirstChild(player.Name .. "_BillboardGui")
+	if billboard then
+		billboard:Destroy()
+	end
 end
 
+-- Oyuncu eklendiğinde highlight
 Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function()
-        CreateESP(player)
-    end)
+	player.CharacterAdded:Connect(function()
+		createHighlight(player)
+	end)
 end)
 
--- ScreenGui toggle butonu
-local screenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-screenGui.ResetOnSpawn = false
-local toggleButton = Instance.new("TextButton", screenGui)
-toggleButton.Size = UDim2.new(0,100,0,50)
-toggleButton.Position = UDim2.new(0,10,0,10)
-toggleButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
-toggleButton.TextColor3 = Color3.fromRGB(0,255,0)
-toggleButton.Text = "ESP Kapat"
-
-toggleButton.MouseButton1Click:Connect(function()
-    ESPEnabled = not ESPEnabled
-    toggleButton.Text = ESPEnabled and "ESP Kapat" or "ESP Aç"
-    for _, obj in pairs(ESPObjects) do
-        obj.Gui.Enabled = ESPEnabled
-    end
+-- Oyuncu çıktığında highlight temizle
+Players.PlayerRemoving:Connect(function(player)
+	removeHighlight(player)
 end)
 
--- ESP güncelleme
-RunService.RenderStepped:Connect(function()
-    for _, obj in pairs(ESPObjects) do
-        local root = obj.Root
-        local gui = obj.Gui
-        if root and gui then
-            gui.Adornee = root
-            if ESPEnabled then
-                gui.Enabled = true
-            else
-                gui.Enabled = false
-            end
-        end
-    end
-end)
+-- Mevcut oyuncuları ekle
+for _, player in pairs(Players:GetPlayers()) do
+	if player ~= localPlayer then
+		if player.Character then
+			createHighlight(player)
+		end
+		player.CharacterAdded:Connect(function()
+			createHighlight(player)
+		end)
+	end
+end
+
+-- Her 0.5 saniyede güncelle (yeni giren oyuncular için)
+while true do
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= localPlayer and player.Character then
+			createHighlight(player)
+		end
+	end
+	wait(0.5)
+end
