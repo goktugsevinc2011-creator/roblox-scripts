@@ -1,3 +1,7 @@
+-- ======================================
+-- ROBLOX ESP + Nametag + Kamera + Aim Assist
+-- ======================================
+
 -- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -50,7 +54,6 @@ local function createESPGui()
 		else
 			toggleButton.Text = "ESP: OFF"
 			toggleButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-			-- tüm highlight ve billboardları sil
 			for _, child in pairs(highlightFolder:GetChildren()) do
 				child:Destroy()
 			end
@@ -69,7 +72,6 @@ local function createHighlight(player)
 	if not player.Character then return end
 	if highlightFolder:FindFirstChild(player.Name) then return end
 
-	-- Highlight
 	local highlight = Instance.new("Highlight")
 	highlight.Name = player.Name
 	highlight.Adornee = player.Character
@@ -78,7 +80,6 @@ local function createHighlight(player)
 	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 	highlight.Parent = highlightFolder
 
-	-- Nametag
 	local rootPart = player.Character:FindFirstChild("HumanoidRootPart") or player.Character:FindFirstChildWhichIsA("BasePart")
 	if not rootPart then return end
 
@@ -96,7 +97,7 @@ local function createHighlight(player)
 	textLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
 	textLabel.TextScaled = false
 	textLabel.Font = Enum.Font.SourceSansBold
-	textLabel.TextSize = 18 -- sabit boyut
+	textLabel.TextSize = 18
 	textLabel.Text = player.Name
 	textLabel.Parent = billboard
 end
@@ -109,7 +110,6 @@ local function removeHighlight(player)
 	end
 end
 
--- Oyuncu ekleme/çıkarma
 Players.PlayerAdded:Connect(function(player)
 	player.CharacterAdded:Connect(function()
 		createHighlight(player)
@@ -131,7 +131,6 @@ for _, player in pairs(Players:GetPlayers()) do
 	end
 end
 
--- 0.5 saniyede güncelle
 spawn(function()
 	while true do
 		if ESPEnabled then
@@ -149,12 +148,57 @@ end)
 -- 3) Kamera Kilidini Kaldırma
 -- ======================================
 RunService.RenderStepped:Connect(function()
-	-- CameraType her zaman Custom
 	if camera.CameraType ~= Enum.CameraType.Custom then
 		camera.CameraType = Enum.CameraType.Custom
 	end
-	-- FieldOfView sabit
 	if camera.FieldOfView < 70 then
 		camera.FieldOfView = 70
+	end
+end)
+
+-- ======================================
+-- 4) Test Amaçlı Aim Assist
+-- ======================================
+local mouse = localPlayer:GetMouse()
+local aimKey = Enum.KeyCode.Q
+local aiming = false
+
+UserInputService.InputBegan:Connect(function(input, gpe)
+	if input.KeyCode == aimKey then
+		aiming = true
+	end
+end)
+UserInputService.InputEnded:Connect(function(input, gpe)
+	if input.KeyCode == aimKey then
+		aiming = false
+	end
+end)
+
+RunService.RenderStepped:Connect(function()
+	if not aiming then return end
+	if not ESPEnabled then return end
+
+	local closestPlayer = nil
+	local shortestDistance = math.huge
+
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= localPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+			local root = player.Character.HumanoidRootPart
+			local screenPos, onScreen = camera:WorldToViewportPoint(root.Position)
+			if onScreen then
+				local mousePos = Vector2.new(mouse.X, mouse.Y)
+				local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+				if distance < shortestDistance then
+					shortestDistance = distance
+					closestPlayer = player
+				end
+			end
+		end
+	end
+
+	if closestPlayer and closestPlayer.Character and closestPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		local targetPos = closestPlayer.Character.HumanoidRootPart.Position
+		local dir = (targetPos - camera.CFrame.Position).Unit
+		camera.CFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + dir)
 	end
 end)
