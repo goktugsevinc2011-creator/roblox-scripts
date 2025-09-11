@@ -1,4 +1,5 @@
--- ====== Rival's Full ESP + Free Camera + AimAssist + MaxDistance Filter ======
+loadstring([[
+-- ====== Rival's Full ESP + Free Camera + AimAssist + CircleAimbot ======
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -20,7 +21,7 @@ local function createGUI()
     local screenGui = Instance.new("ScreenGui",game:GetService("CoreGui"))
     screenGui.Name="GUI"
     local frame = Instance.new("Frame",screenGui)
-    frame.Size=UDim2.new(0,220,0,220)
+    frame.Size=UDim2.new(0,220,0,240)
     frame.Position=UDim2.new(0,50,0,50)
     frame.BackgroundColor3=Color3.fromRGB(25,25,25)
     frame.Active=true frame.Draggable=true
@@ -134,20 +135,28 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ====== AimAssist + CircleAimbot with MaxDistance Filter ======
+-- ====== AimAssist + CircleAimbot with MaxDistance + CircleVisual ======
 local mouse=LocalPlayer:GetMouse()
+
+-- Circle on screen
+local circle = Drawing.new("Circle")
+circle.Radius = CircleRadius
+circle.Color = Color3.fromRGB(255,255,255)
+circle.Thickness = 2
+circle.Filled = false
+
 local function getClosest()
     local closest=nil
     local shortestDist=math.huge
     for _,p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+        if p~=LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
             local root = p.Character.HumanoidRootPart
             local distance = (root.Position - Camera.CFrame.Position).Magnitude
             if distance <= MaxDistance then
                 local sp, onScreen = Camera:WorldToViewportPoint(root.Position)
                 if onScreen then
                     local md = (Vector2.new(sp.X, sp.Y) - Vector2.new(mouse.X, mouse.Y)).Magnitude
-                    if md < shortestDist then
+                    if md < shortestDist and md <= circle.Radius then
                         shortestDist = md
                         closest = p
                     end
@@ -159,20 +168,22 @@ local function getClosest()
 end
 
 RunService.RenderStepped:Connect(function()
-    local t=getClosest()
+    -- Draw circle
+    circle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+    circle.Radius = CircleRadius
+
+    local t = getClosest()
     if not t or not t.Character or not t.Character:FindFirstChild("HumanoidRootPart") then return end
-    local r=t.Character.HumanoidRootPart
-    local sp,onS=Camera:WorldToViewportPoint(r.Position)
+    local r = t.Character.HumanoidRootPart
+    local sp,onS = Camera:WorldToViewportPoint(r.Position)
     if not onS then return end
-    local dir=(r.Position-Camera.CFrame.Position).Unit
-    local newCF=CFrame.new(Camera.CFrame.Position,Camera.CFrame.Position+dir)
-    if AimAssistEnabled then Camera.CFrame=Camera.CFrame:Lerp(newCF,AimSensitivity) end
+    local dir = (r.Position-Camera.CFrame.Position).Unit
+    local newCF = CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position+dir)
+    if AimAssistEnabled then Camera.CFrame = Camera.CFrame:Lerp(newCF, AimSensitivity) end
     if CircleAimbotEnabled then
-        local md=Vector2.new(sp.X,sp.Y)-Vector2.new(mouse.X,mouse.Y)
-        if md.Magnitude<=CircleRadius then
-            Camera.CFrame=Camera.CFrame:Lerp(newCF,AimSensitivity)
-            VirtualInputManager:SendMouseButtonEvent(0,0,0,true,game,0)
-            VirtualInputManager:SendMouseButtonEvent(0,0,0,false,game,0)
-        end
+        Camera.CFrame = Camera.CFrame:Lerp(newCF, AimSensitivity)
+        VirtualInputManager:SendMouseButtonEvent(0,0,0,true,game,0)
+        VirtualInputManager:SendMouseButtonEvent(0,0,0,false,game,0)
     end
 end)
+]])()
