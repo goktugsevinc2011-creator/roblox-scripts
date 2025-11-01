@@ -1,38 +1,95 @@
--- // TAM ROB LOX EXECUTOR KODU: ESP & MODERN GUI //
--- StarterGui > ScreenGui > LocalScript içine yapıştırılmalıdır.
+-- // GÜÇLENDİRİLMİŞ EXECUTOR KODU: ESP & GUI //
+-- Bu kodu doğrudan executor'a yapıştırıp çalıştırın.
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-
 local HighlightColor = Color3.new(1, 1, 1) -- Beyaz Renk
+
 local HighlightEnabled = false
 local isGUIOpen = true
 
--- GUI Objelerine Güvenli Referanslar
-local MainGui = script.Parent
--- WaitForChild ile nesnelerin yüklenmesini bekle, bu "GUI ekrana gelmiyor" sorununu çözebilir.
-local MainFrame = MainGui:WaitForChild("MainFrame")
-local HeaderFrame = MainFrame:WaitForChild("HeaderFrame")
-local CloseButton = HeaderFrame:WaitForChild("CloseButton")
-local ToggleButton = MainFrame:WaitForChild("ToggleHighlightButton")
+-- GUI Nesnelerini Çalışma Zamanında Oluştur
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ExecutorESP_GUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- Animasyon ve Konum Bilgisi
-local openPosition = UDim2.new(0.85, 0, 0.15, 0) -- Açık pozisyon (Sağ üst köşe)
-local closedPosition = UDim2.new(1.1, 0, 0.15, 0) -- Kapalı pozisyon (Ekran dışı)
-local tweenInfo = TweenInfo.new(
-    0.3,                           -- Animasyon Süresi (saniye)
-    Enum.EasingStyle.Quint,        -- Akıcı Easing Stili
-    Enum.EasingDirection.Out       
-)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0.2, 0, 0.3, 0)
+MainFrame.AnchorPoint = Vector2.new(1, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+
+-- UICorner Ekleme
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 8)
+Corner.Parent = MainFrame
+
+local HeaderFrame = Instance.new("Frame")
+HeaderFrame.Name = "HeaderFrame"
+HeaderFrame.Size = UDim2.new(1, 0, 0.15, 0)
+HeaderFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+HeaderFrame.BorderSizePixel = 0
+HeaderFrame.Parent = MainFrame
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "TitleLabel"
+TitleLabel.Size = UDim2.new(0.85, 0, 1, 0)
+TitleLabel.Text = "Executor ESP"
+TitleLabel.TextColor3 = Color3.new(1, 1, 1)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.TextScaled = true
+TitleLabel.Parent = HeaderFrame
+
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Size = UDim2.new(0.15, 0, 1, 0)
+CloseButton.AnchorPoint = Vector2.new(1, 0)
+CloseButton.Position = UDim2.new(1, 0, 0, 0)
+CloseButton.Text = "X"
+CloseButton.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+CloseButton.TextColor3 = Color3.new(1, 1, 1)
+CloseButton.BorderSizePixel = 0
+CloseButton.Parent = HeaderFrame
+
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Name = "ToggleHighlightButton"
+ToggleButton.Size = UDim2.new(0.9, 0, 0.2, 0)
+ToggleButton.AnchorPoint = Vector2.new(0.5, 0.5)
+ToggleButton.Position = UDim2.new(0.5, 0, 0.5, 0)
+ToggleButton.Text = "HIGHLIGHT: KAPALI"
+ToggleButton.TextColor3 = Color3.new(1, 1, 1)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+ToggleButton.BorderSizePixel = 0
+ToggleButton.TextScaled = true
+ToggleButton.Parent = MainFrame
+
+-- Butonlara da UICorner ekleyelim
+local ButtonCorner = Instance.new("UICorner")
+ButtonCorner.CornerRadius = UDim.new(0, 5)
+ButtonCorner.Parent = ToggleButton
+
+---
+--- ANIMASYON VE KONUM MANTIK
+---
+local openPosition = UDim2.new(0.85, 0, 0.15, 0) 
+local closedPosition = UDim2.new(1.1, 0, 0.15, 0) 
+local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+
+local function toggleGUI(shouldOpen)
+    local targetPos = shouldOpen and openPosition or closedPosition
+    TweenService:Create(MainFrame, tweenInfo, {Position = targetPos}):Play()
+    isGUIOpen = shouldOpen
+end
 
 ---
 --- VURGULAMA (HIGHLIGHT) MANTIK
 ---
 
--- Vurgulama nesnesini bir karaktere ekleyen veya güncelleyen fonksiyon
 local function addHighlightToCharacter(character, enabled)
-    -- Kendi karakterimize highlight eklememek için kontrol
     if character == Players.LocalPlayer.Character then return end
     
     local highlight = character:FindFirstChild("PlayerHighlight")
@@ -42,9 +99,9 @@ local function addHighlightToCharacter(character, enabled)
         highlight.Name = "PlayerHighlight"
         highlight.FillColor = HighlightColor
         highlight.OutlineColor = HighlightColor
-        highlight.FillTransparency = 0.8 -- Dolgu saydamlığı
-        highlight.OutlineTransparency = 0 -- Çizgi görünürlüğü
-        highlight.DepthMode = Enum.DepthMode.AlwaysOnTop -- Duvarlardan görünme
+        highlight.FillTransparency = 0.8 
+        highlight.OutlineTransparency = 0 
+        highlight.DepthMode = Enum.DepthMode.AlwaysOnTop
         
         local adorneePart = character:FindFirstChild("HumanoidRootPart")
         if adorneePart then
@@ -59,7 +116,6 @@ local function addHighlightToCharacter(character, enabled)
     highlight.Enabled = enabled
 end
 
--- Tüm oyuncular için vurgulamayı açıp kapatan ana fonksiyon
 local function manageHighlights(enabled)
     HighlightEnabled = enabled
     for _, player in ipairs(Players:GetPlayers()) do
@@ -70,73 +126,66 @@ local function manageHighlights(enabled)
     end
 end
 
--- Yeni bir oyuncu katıldığında veya karakteri yüklendiğinde
 local function onCharacterAdded(character)
     addHighlightToCharacter(character, HighlightEnabled)
 end
 
--- Oyuncu ve Karakter Takipçileri
-for _, player in ipairs(Players:GetPlayers()) do
+-- Yeni oyuncu katıldığında ve mevcut oyuncular için highlight ekleme
+local function setupPlayerHighlights(player)
     player.CharacterAdded:Connect(onCharacterAdded)
     if player.Character then
         onCharacterAdded(player.Character)
     end
 end
-Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(onCharacterAdded)
-end)
 
----
---- GUI VE ANIMASYON MANTIK
----
-
--- GUI'yi aç/kapat animasyonu
-local function toggleGUI(shouldOpen)
-    local targetPos = shouldOpen and openPosition or closedPosition
-    local tween = TweenService:Create(MainFrame, tweenInfo, {Position = targetPos})
-    tween:Play()
-    isGUIOpen = shouldOpen
+for _, player in ipairs(Players:GetPlayers()) do
+    setupPlayerHighlights(player)
 end
+Players.PlayerAdded:Connect(setupPlayerHighlights)
 
--- Highlight özelliğini aç/kapat (GUI butonu için)
+---
+--- OLAY BAĞLANTILARI
+---
+
 local function toggleHighlightFeature()
     local isNowOn = not HighlightEnabled 
     manageHighlights(isNowOn)
     
     if isNowOn then
         ToggleButton.Text = "HIGHLIGHT: AÇIK"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0) -- Yeşil
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
     else
         ToggleButton.Text = "HIGHLIGHT: KAPALI"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(170, 0, 0) -- Kırmızı
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
     end
 end
 
--- Olay Bağlantıları
 CloseButton.MouseButton1Click:Connect(function()
-    toggleGUI(false) -- X düğmesi GUI'yi küçültür
+    toggleGUI(false) 
 end)
 
 ToggleButton.MouseButton1Click:Connect(toggleHighlightFeature)
 
 -- INSERT Tuşu: GUI Aç/Kapa
 UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-    if input.KeyCode == Enum.KeyCode.Insert and not gameProcessedEvent then
+    -- Executor ortamında gameProcessedEvent'in güvenilirliği değişebilir.
+    if input.KeyCode == Enum.KeyCode.Insert then
         if isGUIOpen then
-            toggleGUI(false) -- Kapat
+            toggleGUI(false) 
         else
-            toggleGUI(true) -- Aç
+            toggleGUI(true) 
         end
     end
 end)
 
 ---
---- BAŞLANGIÇ AYARLARI
+--- BAŞLANGIÇ ÇALIŞTIRMA
 ---
 
--- GUI'yi başlangıçta kapalı konuma ayarla (animasyonla açılacak)
+-- Highlight'ı başlangıçta kapalı hale getir (toggleHighlightFeature fonksiyonu ilk çağrıldığında açılacak)
+toggleHighlightFeature() 
+-- GUI'yi başlangıçta kapalı konuma ayarla ve aç
 MainFrame.Position = closedPosition 
--- GUI'yi aç (animasyon başlar)
 toggleGUI(true) 
--- Highlight özelliğini başlangıçta KAPALI olarak ayarla
-toggleHighlightFeature()
+
+-- EOF (End of File)
