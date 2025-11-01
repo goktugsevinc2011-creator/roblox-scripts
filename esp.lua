@@ -1,170 +1,134 @@
--- // Executor Script (CS2 Teması - Yalnızca İstemci Tarafında Çalışır)
+-- // TEK ROB LOX EXECUTOR KODU (LocalScript)
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
-local WHITE = Color3.fromRGB(255, 255, 255)
-local ACCENT_COLOR = Color3.fromRGB(150, 200, 255) -- Mavi/Cyan Vurgu Rengi
-local BG_COLOR = Color3.fromRGB(30, 30, 30)        -- Koyu Gri Arka Plan
-local HIGHLIGHT_COLOR = Color3.fromRGB(255, 255, 255) -- Highlight Rengi Beyaz
+local HighlightColor = Color3.new(1, 1, 1) -- Beyaz Renk
+local HighlightEnabled = false
+local isGUIOpen = true
 
-local highlightsEnabled = false -- Highlight durumu
+-- GUI Objelerine Referans (Studio'da bu isimlerle oluşturulmalıdır)
+local MainGui = script.Parent
+local MainFrame = MainGui:WaitForChild("MainFrame")
+local CloseButton = MainFrame:WaitForChild("HeaderFrame"):WaitForChild("CloseButton")
+local ToggleButton = MainFrame:WaitForChild("ToggleHighlightButton")
 
--- // 1. HIGHLIGHT YÖNETİMİ FONKSİYONLARI //
-local function createHighlight(character)
-    local existing = character:FindFirstChild("CheatPlayerHighlight")
-    if existing then existing:Destroy() end
+-- Animasyon Bilgisi
+local openPosition = UDim2.new(0.85, 0, 0.15, 0) -- Açık pozisyon (Sağ üst köşe)
+local closedPosition = UDim2.new(1.1, 0, 0.15, 0) -- Kapalı pozisyon (Ekran dışı)
+local tweenInfo = TweenInfo.new(
+    0.3,                           -- Süre (saniye)
+    Enum.EasingStyle.Quint,        -- Modern Easing Stili
+    Enum.EasingDirection.Out       -- Easing Yönü
+)
+
+---
+--- VURGULAMA (HIGHLIGHT) FONKSİYONLARI
+---
+
+-- Vurgulama nesnesini bir karaktere ekleyen veya güncelleyen fonksiyon
+local function addHighlightToCharacter(character, enabled)
+    local highlight = character:FindFirstChild("PlayerHighlight")
     
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "CheatPlayerHighlight"
-    highlight.FillColor = HIGHLIGHT_COLOR
-    highlight.OutlineColor = HIGHLIGHT_COLOR
-    highlight.FillTransparency = 0.5     -- Duvar arkası görünürlük için
-    highlight.OutlineTransparency = 0
-    highlight.Adornee = character
-    highlight.Enabled = highlightsEnabled
-    highlight.Parent = character
-    return highlight
-end
-
-local function toggleHighlightForCharacter(character, enabled)
-    local highlight = character:FindFirstChild("CheatPlayerHighlight")
     if not highlight then
-        highlight = createHighlight(character)
+        highlight = Instance.new("Highlight")
+        highlight.Name = "PlayerHighlight"
+        highlight.FillColor = HighlightColor
+        highlight.OutlineColor = HighlightColor
+        highlight.FillTransparency = 0.8 
+        highlight.OutlineTransparency = 0
+        highlight.DepthMode = Enum.DepthMode.AlwaysOnTop -- Duvarlardan görünme
+        
+        local adorneePart = character:FindFirstChild("HumanoidRootPart")
+        if adorneePart then
+            highlight.Adornee = adorneePart
+        else
+            highlight.Adornee = character
+        end
+        
+        highlight.Parent = character
     end
-    if highlight then
-        highlight.Enabled = enabled
-    end
+    
+    highlight.Enabled = enabled
 end
 
-local function toggleAllHighlights(enabled)
-    highlightsEnabled = enabled
+-- Tüm oyuncular için vurgulamayı açıp kapatan fonksiyon
+local function manageHighlights(enabled)
+    HighlightEnabled = enabled
     for _, player in ipairs(Players:GetPlayers()) do
-        if player.Character then
-            toggleHighlightForCharacter(player.Character, enabled)
+        local character = player.Character
+        if character and character:FindFirstChild("Humanoid") then
+            addHighlightToCharacter(character, enabled)
         end
     end
 end
 
--- Yeni oyuncu veya karakter yüklenmelerini takip et
-Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function(character)
-        createHighlight(character)
-    end)
-end)
+-- Yeni bir oyuncu katıldığında veya karakteri yüklendiğinde
+local function onCharacterAdded(character)
+    -- Yeni oyuncu geldiğinde/spawn olduğunda mevcut HighlightEnabled durumunu uygula
+    addHighlightToCharacter(character, HighlightEnabled)
+end
+
+-- Oyuncu takipçileri
 for _, player in ipairs(Players:GetPlayers()) do
+    player.CharacterAdded:Connect(onCharacterAdded)
     if player.Character then
-        createHighlight(player.Character)
+        onCharacterAdded(player.Character)
     end
 end
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(onCharacterAdded)
+end)
 
--- // 2. GUI KURULUMU //
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CS2_Cheat_GUI"
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainMenu"
-MainFrame.Size = UDim2.new(0, 250, 0, 150)
-MainFrame.Position = UDim2.new(0.5, -125, 0.5, -75) -- Ekran Ortası
-MainFrame.BackgroundColor3 = BG_COLOR
-MainFrame.BorderColor3 = ACCENT_COLOR -- Mavi kenarlık
-MainFrame.BorderSizePixel = 1
-MainFrame.Parent = ScreenGui
-MainFrame.Visible = false -- Başlangıçta gizli
+---
+--- GUI VE ANIMASYON FONKSİYONLARI
+---
 
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 5) -- Hafifçe yuvarlanmış köşeler
-UICorner.Parent = MainFrame
-
-local TitleBar = Instance.new("TextLabel")
-TitleBar.Name = "TitleBar"
-TitleBar.Size = UDim2.new(1, 0, 0, 25)
-TitleBar.Position = UDim2.new(0, 0, 0, 0)
-TitleBar.BackgroundColor3 = ACCENT_COLOR
-TitleBar.TextColor3 = BG_COLOR
-TitleBar.Text = "/// RBLX EXTERNAL CLIENT (Flick Aim) ///"
-TitleBar.Font = Enum.Font.Code
-TitleBar.TextScaled = false
-TitleBar.TextSize = 14
-TitleBar.TextXAlignment = Enum.TextXAlignment.Left
-TitleBar.TextWrapped = true
-TitleBar.Parent = MainFrame
-
--- Vurgulama Durum Etiketi
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Name = "StatusLabel"
-StatusLabel.Size = UDim2.new(1, 0, 0, 20)
-StatusLabel.Position = UDim2.new(0, 0, 0, 30)
-StatusLabel.BackgroundColor3 = BG_COLOR
-StatusLabel.BackgroundTransparency = 0.5
-StatusLabel.TextColor3 = WHITE
-StatusLabel.Text = "ESP Status: DISABLED (Press INS)"
-StatusLabel.Font = Enum.Font.Code
-StatusLabel.TextSize = 12
-StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
-StatusLabel.TextWrapped = true
-StatusLabel.Parent = MainFrame
-
--- Vurgulama Butonu/Ayarı
-local ESPToggle = Instance.new("TextButton")
-ESPToggle.Name = "ESPToggle"
-ESPToggle.Size = UDim2.new(0.9, 0, 0, 30)
-ESPToggle.Position = UDim2.new(0.05, 0, 0.45, 0)
-ESPToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50) -- Koyu düğme
-ESPToggle.TextColor3 = WHITE
-ESPToggle.Text = "Player ESP [OFF]"
-ESPToggle.Font = Enum.Font.Code
-ESPToggle.TextSize = 14
-ESPToggle.Parent = MainFrame
-
-local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(0, 3)
-ToggleCorner.Parent = ESPToggle
-
--- // 3. TUŞ İLE AÇ/KAPA İŞLEVİ //
-local isProcessingInput = false
-
--- GUI'yi açıp kapatma işlevi (Insert tuşu için)
-local function toggleGUI(visible)
-    MainFrame.Visible = visible
+-- GUI'yi aç/kapat animasyonu
+local function toggleGUI(shouldOpen)
+    local targetPos = shouldOpen and openPosition or closedPosition
+    local tween = TweenService:Create(MainFrame, tweenInfo, {Position = targetPos})
+    tween:Play()
+    isGUIOpen = shouldOpen
 end
 
--- ESP'yi açıp kapatma ve GUI durumunu güncelleme işlevi
-local function toggleESP(enabled)
-    toggleAllHighlights(enabled)
-
-    local statusText = enabled and "ESP Status: ACTIVE (White Highlight)" or "ESP Status: DISABLED (Press INS)"
-    local buttonText = enabled and "Player ESP [ON]" or "Player ESP [OFF]"
-    local buttonColor = enabled and Color3.fromRGB(40, 150, 40) or Color3.fromRGB(50, 50, 50)
+-- Highlight özelliğini aç/kapat (GUI butonu için)
+local function toggleHighlightFeature()
+    local isNowOn = not HighlightEnabled -- Mevcut durumun tersini al
+    manageHighlights(isNowOn) -- Highlight fonksiyonunu çağır
     
-    StatusLabel.Text = statusText
-    ESPToggle.Text = buttonText
-    ESPToggle.BackgroundColor3 = buttonColor
+    if isNowOn then
+        ToggleButton.Text = "HIGHLIGHT: AÇIK"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0) -- Yeşil
+    else
+        ToggleButton.Text = "HIGHLIGHT: KAPALI"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(170, 0, 0) -- Kırmızı
+    end
 end
 
--- Başlangıç durumunu ayarla
-toggleESP(highlightsEnabled)
+-- Olay Bağlantıları
+CloseButton.MouseButton1Click:Connect(function()
+    toggleGUI(false) -- X düğmesi GUI'yi küçültür
+end)
 
+ToggleButton.MouseButton1Click:Connect(toggleHighlightFeature)
+
+-- INSERT tuşu ile aç/kapat
 UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-    if gameProcessedEvent and not isProcessingInput then return end
-
-    if input.KeyCode == Enum.KeyCode.Insert then
-        isProcessingInput = true
-        
-        -- GUI'yi aç/kapa
-        toggleGUI(not MainFrame.Visible)
-        
-        -- ESP'yi aç/kapa
-        highlightsEnabled = not highlightsEnabled
-        toggleESP(highlightsEnabled)
-        
-        isProcessingInput = false
+    if input.KeyCode == Enum.KeyCode.Insert and not gameProcessedEvent then
+        if isGUIOpen then
+            toggleGUI(false) -- Kapat
+        else
+            toggleGUI(true) -- Aç
+        end
     end
 end)
 
-ESPToggle.MouseButton1Click:Connect(function()
-    highlightsEnabled = not highlightsEnabled
-    toggleESP(highlightsEnabled)
-end)
+-- Başlangıç Ayarları
+MainFrame.Position = closedPosition -- Başlangıçta kapalı konumda olsun
+toggleGUI(true) -- GUI'yi ilk açılışta aç
+
+-- Highlight'ı başlangıçta KAPALI olarak ayarla (toggleHighlightFeature() ilk çağrıldığında açılacak)
+toggleHighlightFeature() -- Toggle'ı ilk çalıştığında açılacak şekilde ayarlar (Default'u KAPALI)
