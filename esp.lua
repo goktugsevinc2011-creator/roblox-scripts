@@ -1,9 +1,9 @@
--- // TEK ROB LOX EXECUTOR KODU (LocalScript)
+-- // TEK ROB LOX EXECUTOR KODU: ESP & MODERN GUI
+-- StarterGui > ScreenGui > LocalScript içine yerleştirilmelidir.
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-
 local HighlightColor = Color3.new(1, 1, 1) -- Beyaz Renk
 local HighlightEnabled = false
 local isGUIOpen = true
@@ -11,24 +11,24 @@ local isGUIOpen = true
 -- GUI Objelerine Referans (Studio'da bu isimlerle oluşturulmalıdır)
 local MainGui = script.Parent
 local MainFrame = MainGui:WaitForChild("MainFrame")
-local CloseButton = MainFrame:WaitForChild("HeaderFrame"):WaitForChild("CloseButton")
+local HeaderFrame = MainFrame:WaitForChild("HeaderFrame")
+local CloseButton = HeaderFrame:WaitForChild("CloseButton")
 local ToggleButton = MainFrame:WaitForChild("ToggleHighlightButton")
 
--- Animasyon Bilgisi
-local openPosition = UDim2.new(0.85, 0, 0.15, 0) -- Açık pozisyon (Sağ üst köşe)
-local closedPosition = UDim2.new(1.1, 0, 0.15, 0) -- Kapalı pozisyon (Ekran dışı)
-local tweenInfo = TweenInfo.new(
-    0.3,                           -- Süre (saniye)
-    Enum.EasingStyle.Quint,        -- Modern Easing Stili
-    Enum.EasingDirection.Out       -- Easing Yönü
-)
+-- Animasyon ve Konum Bilgisi
+local openPosition = UDim2.new(0.85, 0, 0.15, 0) 
+local closedPosition = UDim2.new(1.1, 0, 0.15, 0) 
+local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
 ---
---- VURGULAMA (HIGHLIGHT) FONKSİYONLARI
+--- VURGULAMA (HIGHLIGHT) MANTIK
 ---
 
 -- Vurgulama nesnesini bir karaktere ekleyen veya güncelleyen fonksiyon
 local function addHighlightToCharacter(character, enabled)
+    -- Kendi karakterimize highlight eklememek için kontrol
+    if character == Players.LocalPlayer.Character then return end
+    
     local highlight = character:FindFirstChild("PlayerHighlight")
     
     if not highlight then
@@ -36,7 +36,7 @@ local function addHighlightToCharacter(character, enabled)
         highlight.Name = "PlayerHighlight"
         highlight.FillColor = HighlightColor
         highlight.OutlineColor = HighlightColor
-        highlight.FillTransparency = 0.8 
+        highlight.FillTransparency = 0.8
         highlight.OutlineTransparency = 0
         highlight.DepthMode = Enum.DepthMode.AlwaysOnTop -- Duvarlardan görünme
         
@@ -44,6 +44,7 @@ local function addHighlightToCharacter(character, enabled)
         if adorneePart then
             highlight.Adornee = adorneePart
         else
+            -- Karakterin tamamını vurgula
             highlight.Adornee = character
         end
         
@@ -53,7 +54,7 @@ local function addHighlightToCharacter(character, enabled)
     highlight.Enabled = enabled
 end
 
--- Tüm oyuncular için vurgulamayı açıp kapatan fonksiyon
+-- Tüm oyuncular için vurgulamayı açıp kapatan ana fonksiyon
 local function manageHighlights(enabled)
     HighlightEnabled = enabled
     for _, player in ipairs(Players:GetPlayers()) do
@@ -66,11 +67,10 @@ end
 
 -- Yeni bir oyuncu katıldığında veya karakteri yüklendiğinde
 local function onCharacterAdded(character)
-    -- Yeni oyuncu geldiğinde/spawn olduğunda mevcut HighlightEnabled durumunu uygula
     addHighlightToCharacter(character, HighlightEnabled)
 end
 
--- Oyuncu takipçileri
+-- Oyuncu ve Karakter Takipçileri
 for _, player in ipairs(Players:GetPlayers()) do
     player.CharacterAdded:Connect(onCharacterAdded)
     if player.Character then
@@ -81,9 +81,8 @@ Players.PlayerAdded:Connect(function(player)
     player.CharacterAdded:Connect(onCharacterAdded)
 end)
 
-
 ---
---- GUI VE ANIMASYON FONKSİYONLARI
+--- GUI VE ANIMASYON MANTIK
 ---
 
 -- GUI'yi aç/kapat animasyonu
@@ -96,8 +95,8 @@ end
 
 -- Highlight özelliğini aç/kapat (GUI butonu için)
 local function toggleHighlightFeature()
-    local isNowOn = not HighlightEnabled -- Mevcut durumun tersini al
-    manageHighlights(isNowOn) -- Highlight fonksiyonunu çağır
+    local isNowOn = not HighlightEnabled 
+    manageHighlights(isNowOn)
     
     if isNowOn then
         ToggleButton.Text = "HIGHLIGHT: AÇIK"
@@ -108,15 +107,17 @@ local function toggleHighlightFeature()
     end
 end
 
--- Olay Bağlantıları
+-- X Düğmesi: Kapatma (küçültme)
 CloseButton.MouseButton1Click:Connect(function()
-    toggleGUI(false) -- X düğmesi GUI'yi küçültür
+    toggleGUI(false) 
 end)
 
+-- Toggle Düğmesi: Highlight Aç/Kapa
 ToggleButton.MouseButton1Click:Connect(toggleHighlightFeature)
 
--- INSERT tuşu ile aç/kapat
+-- INSERT Tuşu: GUI Aç/Kapa
 UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    -- gameProcessedEvent kontrolü, metin kutusu vb. etkileşimleri engeller
     if input.KeyCode == Enum.KeyCode.Insert and not gameProcessedEvent then
         if isGUIOpen then
             toggleGUI(false) -- Kapat
@@ -126,9 +127,13 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
     end
 end)
 
--- Başlangıç Ayarları
-MainFrame.Position = closedPosition -- Başlangıçta kapalı konumda olsun
-toggleGUI(true) -- GUI'yi ilk açılışta aç
+---
+--- BAŞLANGIÇ AYARLARI
+---
 
--- Highlight'ı başlangıçta KAPALI olarak ayarla (toggleHighlightFeature() ilk çağrıldığında açılacak)
-toggleHighlightFeature() -- Toggle'ı ilk çalıştığında açılacak şekilde ayarlar (Default'u KAPALI)
+-- GUI'yi başlangıçta kapalı konuma ayarla (animasyonla açılacak)
+MainFrame.Position = closedPosition 
+-- GUI'yi aç (animasyon başlar)
+toggleGUI(true) 
+-- Highlight özelliğini başlangıçta KAPALI olarak ayarla
+toggleHighlightFeature()
