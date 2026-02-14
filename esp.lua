@@ -1,67 +1,64 @@
--- Executor/Client-Side Lua Betiği (GUI Toggle Versiyonu)
-
+-- 2D Box & Skeleton ESP
 local Players = game:GetService("Players")
-local isKillauraActive = false -- Durum takipçisi
-local killInterval = 1 -- Saniye olarak bekleme aralığı
-local killLoop
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
 
--- Öldürme Fonksiyonu (Açıldığında çalışacak döngü)
-local function startKillLoop()
-    isKillauraActive = true
-    killLoop = coroutine.wrap(function()
-        while isKillauraActive do
-            for _, player in pairs(Players:GetPlayers()) do
-                -- Kendinizi atlamak için:
-                if player == Players.LocalPlayer then
-                    continue
-                end
+local function createESP(player)
+    local box = Drawing.new("Square")
+    box.Visible = false
+    box.Color = Color3.fromRGB(0, 255, 0) -- Yeşil Dikdörtgen
+    box.Thickness = 1 -- İnce çizgi
+    box.Filled = false
 
-                local character = player.Character
-                if character then
-                    local humanoid = character:FindFirstChildWhichIsA("Humanoid")
-                    if humanoid and humanoid.Health > 0 then
-                        humanoid.Health = 0
-                    end
-                end
+    local headLine = Drawing.new("Line") -- Kafa-Gövde arası iskelet
+    headLine.Visible = false
+    headLine.Color = Color3.fromRGB(255, 255, 255) -- Beyaz iskelet
+    headLine.Thickness = 1
+
+    local connection
+    connection = RunService.RenderStepped:Connect(function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Head") then
+            local rootPart = player.Character.HumanoidRootPart
+            local head = player.Character.Head
+            local rootPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+            local headPos = Camera:WorldToViewportPoint(head.Position)
+
+            if onScreen then
+                -- 2D Dikdörtgen Ayarları
+                local sizeX = 2000 / rootPos.Z
+                local sizeY = 3000 / rootPos.Z
+                box.Size = Vector2.new(sizeX, sizeY)
+                box.Position = Vector2.new(rootPos.X - sizeX / 2, rootPos.Y - sizeY / 2)
+                box.Visible = true
+
+                -- Basit 2D İskelet Çizgisi (Kafadan Merkeze)
+                headLine.From = Vector2.new(headPos.X, headPos.Y)
+                headLine.To = Vector2.new(rootPos.X, rootPos.Y)
+                headLine.Visible = true
+            else
+                box.Visible = false
+                headLine.Visible = false
             end
-            wait(killInterval)
+        else
+            box.Visible = false
+            headLine.Visible = false
+            if not player.Parent then
+                connection:Disconnect()
+                box:Remove()
+                headLine:Remove()
+            end
         end
     end)
-    killLoop() -- Coroutine'i başlat
 end
 
--- Durdurma Fonksiyonu
-local function stopKillLoop()
-    isKillauraActive = false
-    -- Coroutine çalışıyorsa, bir sonraki döngüde otomatik olarak duracaktır.
-    -- Ek olarak: Eğer executorunuzda 'kill' fonksiyonu varsa (thread/coroutine için) burada kullanabilirsiniz.
-end
-
--- GUI Oluşturma ve Buton Fonksiyonu (Executor API'sine göre değişebilir)
--- Bu kısım genellikle executor'un kendi GUI builder fonksiyonları ile yapılır.
--- Örneğin, Synapse X'in (g_ui) veya diğerlerinin API'leri ile:
-
--- Örnek GUI Yapısı (Bu kısım executor'a özeldir ve düzgün çalışması için adaptasyon gerekebilir):
--- local window = loadstring(game:HttpGet('https://raw.githubusercontent.com/wally-rblx/LinoriaLib/main/Library.lua'))()
-
--- Eğer bir GUI butonu bağlayacaksanız, butona basıldığında aşağıdaki kod çalışmalıdır:
-
-local function onToggleButtonClicked()
-    if isKillauraActive then
-        stopKillLoop()
-        print("Kill Aura KAPALI.")
-        -- Buton rengini/yazısını "AÇIK" değil "KAPALI" olarak güncelle.
-    else
-        startKillLoop()
-        print("Kill Aura AÇIK.")
-        -- Buton rengini/yazısını "KAPALI" değil "AÇIK" olarak güncelle.
+-- Mevcut oyuncular için başlat
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= Players.LocalPlayer then
+        createESP(player)
     end
 end
 
--- ÖRNEK: GUI API kullanılamıyorsa, manuel bir deneme butonu
--- print("Kill Aura Toggle Betiği Yüklendi. Test için onToggleButtonClicked() fonksiyonunu çağırın.")
--- print("BUTON FONKSİYONU BAĞLANACAK: onToggleButtonClicked")
-
-
--- BUTON FONKSİYONU İÇİN SON KOD BLOKU
-onToggleButtonClicked() -- <-- Bu fonksiyonu, GUI butonunuzun 'OnClick' olayına bağlamalısınız.
+-- Yeni gelenler için başlat
+Players.PlayerAdded:Connect(function(player)
+    createESP(player)
+end)
